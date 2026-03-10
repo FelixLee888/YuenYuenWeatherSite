@@ -37,7 +37,7 @@ body::before {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background-image: url("/asset/yuen_yuen_weather_header.png");
+  background-image: url("./asset/yuen_yuen_weather_header.png");
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center top;

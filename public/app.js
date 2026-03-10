@@ -18,6 +18,12 @@ const GRADE_TO_SCORE = {
   excellent: 95
 };
 
+const APP_BASE_URL = new URL("./", window.location.href);
+const LOCAL_WATCHLIST_STORAGE_KEY = "yuen_yuen_weather_watchlist";
+const STATIC_SYNC_UNAVAILABLE = "GitHub Pages mode: AIBot watchlist sync is unavailable.";
+
+let staticBundleCache = null;
+
 const state = {
   locations: [],
   cards: new Map(),
@@ -182,7 +188,7 @@ async function loadOverview() {
 
 async function loadPredefinedLocations() {
   try {
-    const response = await fetch("/data/weather_latest_report.json");
+    const response = await fetch(resolveRequestUrl("data/weather_latest_report.json"));
     if (!response.ok) {
       return {
         ok: false,
@@ -757,8 +763,10 @@ function setStatus(message, type = "info") {
 }
 
 async function apiRequest(url, options = {}) {
+  const requestUrl = resolveRequestUrl(url);
+
   try {
-    const response = await fetch(url, {
+    const response = await fetch(requestUrl, {
       ...options,
       headers: {
         ...(options.body ? { "Content-Type": "application/json" } : {}),
@@ -770,6 +778,11 @@ async function apiRequest(url, options = {}) {
     const data = parseJsonSafely(text);
 
     if (!response.ok) {
+      const fallback = await maybeStaticApiFallback(url, options, response.status);
+      if (fallback) {
+        return fallback;
+      }
+
       const error =
         data?.error ||
         data?.message ||
@@ -785,6 +798,11 @@ async function apiRequest(url, options = {}) {
       ...(toObject(data) || { data })
     };
   } catch (error) {
+    const fallback = await maybeStaticApiFallback(url, options, 0);
+    if (fallback) {
+      return fallback;
+    }
+
     return {
       ok: false,
       status: 0,
@@ -792,6 +810,542 @@ async function apiRequest(url, options = {}) {
       data: null
     };
   }
+}
+
+function resolveRequestUrl(url) {
+  const raw = `${url || ""}`.trim();
+  if (!raw) {
+    return APP_BASE_URL.toString();
+  }
+
+  if (/^[a-z]+:\/\//i.test(raw)) {
+    return raw;
+  }
+
+  const normalized = raw.startsWith("/") ? raw.slice(1) : raw;
+  return new URL(normalized, APP_BASE_URL).toString();
+}
+
+function isApiPath(url) {
+  const raw = `${url || ""}`.trim();
+  if (!raw) {
+    return false;
+  }
+
+  if (/^[a-z]+:\/\//i.test(raw)) {
+    try {
+      return new URL(raw).pathname.includes("/api/");
+    } catch {
+      return false;
+    }
+  }
+
+  const normalized = raw.replace(/^(\.\/)+/, "").replace(/^\/+/, "");
+  return normalized.startsWith("api/");
+}
+
+function toApiPath(url) {
+  const absolute = new URL(resolveRequestUrl(url));
+  const pathname = absolute.pathname || "/";
+  const apiIndex = pathname.indexOf("/api/");
+  return apiIndex >= 0 ? pathname.slice(apiIndex) : pathname;
+}
+
+function isStaticSiteHost() {
+  const host = `${window.location.hostname || ""}`.toLowerCase();
+  return host.endsWith("github.io");
+}
+
+async function maybeStaticApiFallback(url, options, statusCode) {
+  if (!isApiPath(url)) {
+    return null;
+  }
+
+  if (!isStaticSiteHost() && statusCode !== 404 && statusCode !== 0) {
+    return null;
+  }
+
+  const fallback = await staticApiRequest(url, options);
+  if (fallback?.ok) {
+    return fallback;
+  }
+
+  if (statusCode === 404 || statusCode === 0) {
+    return fallback;
+  }
+
+  return null;
+}
+
+async function staticApiRequest(url, options = {}) {
+  const method = `${options.method || "GET"}`.toUpperCase();
+  const absolute = new URL(resolveRequestUrl(url));
+  const apiPath = toApiPath(url);
+
+  if (apiPath === "/api/weather/watchlist" && method === "GET") {
+    const bundle = await loadStaticBundle();
+    return {
+      ok: true,
+      status: 200,
+      source: "public/data",
+      data: buildWatchlistPayloadStatic(bundle)
+    };
+  }
+
+  if (apiPath === "/api/weather/watchlist" && method === "POST") {
+    const body = readApiRequestBody(options.body);
+    const location = [body?.location, body?.name, absolute.searchParams.get("location")]
+      .map((value) => (typeof value === "string" ? value.trim() : ""))
+      .find(Boolean);
+
+    if (!location) {
+      return {
+        ok: false,
+        status: 400,
+        error: "Body must include 'location' or 'name'.",
+        data: null
+      };
+    }
+
+    const bundle = await loadStaticBundle();
+    const hasLocation = hasLocationInListStatic(bundle.watchlist.locations, location);
+
+    if (!hasLocation) {
+      bundle.watchlist.locations.push(location);
+      bundle.watchlist.updated_at_utc = new Date().toISOString();
+      saveLocalWatchlist(bundle.watchlist);
+      staticBundleCache = null;
+    }
+
+    const refreshed = await loadStaticBundle(true);
+
+    return {
+      ok: true,
+      status: 200,
+      source: "public/data",
+      location,
+      added: !hasLocation,
+      message: hasLocation ? "Location already exists in local watchlist." : "Location added to local watchlist.",
+      watchlist: buildWatchlistPayloadStatic(refreshed),
+      sync: {
+        enabled: false,
+        ok: false,
+        status: 0,
+        error: STATIC_SYNC_UNAVAILABLE
+      }
+    };
+  }
+
+  if (
+    (apiPath === "/api/weather" || apiPath === "/api/weather/daily" || apiPath === "/api/weather/benchmark" || apiPath === "/api/weather/history") &&
+    method === "GET"
+  ) {
+    const location = (absolute.searchParams.get("location") || "").trim();
+    if (!location) {
+      return {
+        ok: false,
+        status: 400,
+        error: "Query parameter 'location' is required.",
+        data: null
+      };
+    }
+
+    const bundle = await loadStaticBundle();
+    const knownLocations = collectKnownLocationsStatic(bundle.report, bundle.history, bundle.watchlist.locations);
+    const resolvedLocation = resolveLocationFromStatic(location, knownLocations);
+
+    const daily = buildDailyDataStatic(bundle.report, bundle.history, resolvedLocation);
+    const benchmark = buildBenchmarkDataStatic(bundle.benchmark, resolvedLocation);
+    const history = buildHistoryDataStatic(bundle.history, resolvedLocation);
+    const watchlist = buildWatchlistPayloadStatic(bundle);
+
+    if (apiPath === "/api/weather/daily") {
+      return {
+        ok: true,
+        status: 200,
+        source: "public/data",
+        location: resolvedLocation,
+        data: daily
+      };
+    }
+
+    if (apiPath === "/api/weather/benchmark") {
+      return {
+        ok: true,
+        status: 200,
+        source: "public/data",
+        location: resolvedLocation,
+        data: benchmark
+      };
+    }
+
+    if (apiPath === "/api/weather/history") {
+      return {
+        ok: true,
+        status: 200,
+        source: "public/data",
+        location: resolvedLocation,
+        data: history
+      };
+    }
+
+    return {
+      ok: true,
+      status: 200,
+      source: "public/data",
+      location: resolvedLocation,
+      data: {
+        daily,
+        benchmark,
+        history,
+        watchlist
+      }
+    };
+  }
+
+  return null;
+}
+
+function readApiRequestBody(body) {
+  if (!body) {
+    return {};
+  }
+
+  if (typeof body === "string") {
+    const parsed = parseJsonSafely(body);
+    return toObject(parsed) || {};
+  }
+
+  return toObject(body) || {};
+}
+
+async function loadStaticBundle(force = false) {
+  if (staticBundleCache && !force) {
+    return staticBundleCache;
+  }
+
+  const [report, benchmark, history, watchlistFile] = await Promise.all([
+    fetchDataJson("data/weather_latest_report.json", {}),
+    fetchDataJson("data/weather_benchmarks_latest.json", {}),
+    fetchDataJson("data/weather_history_recent.json", {}),
+    fetchDataJson("data/weather_watchlist.json", { locations: [], updated_at_utc: null })
+  ]);
+
+  const fileWatchlist = normalizeWatchlistPayload(watchlistFile);
+  const localWatchlist = loadLocalWatchlist();
+  const mergedWatchlist = {
+    updated_at_utc: localWatchlist.updated_at_utc || fileWatchlist.updated_at_utc || null,
+    locations: mergeLocationsStatic(fileWatchlist.locations, localWatchlist.locations)
+  };
+
+  staticBundleCache = {
+    report: toObject(report) || {},
+    benchmark: toObject(benchmark) || {},
+    history: toObject(history) || {},
+    watchlist: mergedWatchlist
+  };
+
+  return staticBundleCache;
+}
+
+async function fetchDataJson(relativePath, fallbackValue) {
+  try {
+    const response = await fetch(resolveRequestUrl(relativePath), { cache: "no-store" });
+    if (!response.ok) {
+      return fallbackValue;
+    }
+
+    return await response.json();
+  } catch {
+    return fallbackValue;
+  }
+}
+
+function loadLocalWatchlist() {
+  try {
+    const raw = window.localStorage.getItem(LOCAL_WATCHLIST_STORAGE_KEY);
+    if (!raw) {
+      return { locations: [], updated_at_utc: null };
+    }
+
+    return normalizeWatchlistPayload(parseJsonSafely(raw));
+  } catch {
+    return { locations: [], updated_at_utc: null };
+  }
+}
+
+function saveLocalWatchlist(payload) {
+  const normalized = normalizeWatchlistPayload(payload);
+  try {
+    window.localStorage.setItem(LOCAL_WATCHLIST_STORAGE_KEY, JSON.stringify(normalized));
+  } catch {
+    // Storage can fail in restrictive browser contexts; ignore silently.
+  }
+}
+
+function normalizeWatchlistPayload(payload) {
+  if (Array.isArray(payload)) {
+    return {
+      updated_at_utc: null,
+      locations: payload.map((item) => `${item || ""}`.trim()).filter(Boolean)
+    };
+  }
+
+  const source = toObject(payload) || {};
+  const list = Array.isArray(source.locations) ? source.locations : [];
+
+  return {
+    updated_at_utc: typeof source.updated_at_utc === "string" ? source.updated_at_utc : null,
+    locations: list.map((item) => `${item || ""}`.trim()).filter(Boolean)
+  };
+}
+
+function buildDailyDataStatic(report, history, location) {
+  const zones = Array.isArray(report?.zones) ? report.zones : [];
+  const zone = zones.find((item) => normalizeLocation(item?.name) === normalizeLocation(location)) || null;
+
+  const forecasts = Array.isArray(history?.forecasts) ? history.forecasts : [];
+  const locationForecasts = forecasts
+    .filter((item) => normalizeLocation(item?.location) === normalizeLocation(location))
+    .sort((a, b) => `${b.run_date || ""}${b.target_date || ""}`.localeCompare(`${a.run_date || ""}${a.target_date || ""}`));
+
+  const latestForecast = locationForecasts[0] || null;
+  const tempMin = toNumber(zone?.ensemble?.temp_min) ?? toNumber(latestForecast?.temp_min);
+  const tempMax = toNumber(zone?.ensemble?.temp_max) ?? toNumber(latestForecast?.temp_max);
+
+  return {
+    location,
+    condition: zone?.briefing || `Forecast snapshot for ${location}.`,
+    summary: zone?.briefing || null,
+    temperature: averageValues(tempMin, tempMax),
+    temp_min: tempMin,
+    temp_max: tempMax,
+    humidity: null,
+    wind_kph: toNumber(zone?.ensemble?.wind_max) ?? toNumber(latestForecast?.wind_max),
+    updated_at: report?.generated_at_utc || history?.generated_at_utc || null,
+    forecast_date: report?.forecast_date || latestForecast?.target_date || null,
+    suitability: zone?.suitability || null,
+    source_forecasts: zone?.source_forecasts || null,
+    reference: latestForecast
+  };
+}
+
+function buildBenchmarkDataStatic(benchmark, location) {
+  const sources = Array.isArray(benchmark?.sources) ? benchmark.sources : [];
+  if (!sources.length) {
+    return {
+      location,
+      score: null,
+      delta: null,
+      source: null,
+      generated_at_utc: benchmark?.generated_at_utc || null,
+      run_date: benchmark?.run_date || null,
+      lookback_days: benchmark?.lookback_days || null,
+      sources: []
+    };
+  }
+
+  const withConfidence = sources.filter((item) => Number.isFinite(toNumber(item?.latest_confidence)));
+  const topSource = withConfidence.length
+    ? withConfidence.reduce((best, row) => (toNumber(row.latest_confidence) > toNumber(best.latest_confidence) ? row : best))
+    : sources[0];
+
+  const averageConfidence = withConfidence.length
+    ? withConfidence.reduce((sum, row) => sum + toNumber(row.latest_confidence), 0) / withConfidence.length
+    : null;
+
+  const topConfidence = toNumber(topSource?.latest_confidence);
+
+  return {
+    location,
+    score: topConfidence,
+    delta: topConfidence !== null && averageConfidence !== null ? topConfidence - averageConfidence : null,
+    source: topSource?.source_label || topSource?.source || null,
+    generated_at_utc: benchmark?.generated_at_utc || null,
+    run_date: benchmark?.run_date || null,
+    lookback_days: benchmark?.lookback_days || null,
+    sources
+  };
+}
+
+function buildHistoryDataStatic(history, location) {
+  const normalizedLocation = normalizeLocation(location);
+  const actuals = Array.isArray(history?.actuals) ? history.actuals : [];
+  const forecasts = Array.isArray(history?.forecasts) ? history.forecasts : [];
+
+  const actualRows = actuals
+    .filter((item) => normalizeLocation(item?.location) === normalizedLocation)
+    .sort((a, b) => `${b.date || ""}`.localeCompare(`${a.date || ""}`))
+    .map((item) => ({
+      kind: "actual",
+      date: item.date || null,
+      temperature: averageValues(toNumber(item.temp_max), toNumber(item.temp_min)),
+      temp_max: toNumber(item.temp_max),
+      temp_min: toNumber(item.temp_min),
+      wind_max: toNumber(item.wind_max),
+      condition: buildActualConditionStatic(item)
+    }));
+
+  const forecastRows = forecasts
+    .filter((item) => normalizeLocation(item?.location) === normalizedLocation)
+    .sort((a, b) => `${b.target_date || ""}${b.run_date || ""}`.localeCompare(`${a.target_date || ""}${a.run_date || ""}`))
+    .slice(0, 10)
+    .map((item) => ({
+      kind: "forecast",
+      date: item.target_date || null,
+      temperature: averageValues(toNumber(item.temp_max), toNumber(item.temp_min)),
+      temp_max: toNumber(item.temp_max),
+      temp_min: toNumber(item.temp_min),
+      wind_max: toNumber(item.wind_max),
+      condition: `Forecast (${item.source_label || item.source || "source"})`,
+      run_date: item.run_date || null,
+      source: item.source || null,
+      source_label: item.source_label || null
+    }));
+
+  const combined = [...actualRows, ...forecastRows]
+    .sort((a, b) => `${b.date || ""}`.localeCompare(`${a.date || ""}`))
+    .slice(0, 30);
+
+  return {
+    location,
+    generated_at_utc: history?.generated_at_utc || null,
+    run_date: history?.run_date || null,
+    history: combined,
+    counts: {
+      actuals: actualRows.length,
+      forecasts: forecastRows.length
+    }
+  };
+}
+
+function buildWatchlistPayloadStatic(bundle) {
+  const dynamicLocations = collectKnownLocationsStatic(bundle.report, bundle.history, []);
+  const customLocations = Array.isArray(bundle.watchlist?.locations) ? bundle.watchlist.locations : [];
+  const merged = mergeLocationsStatic(dynamicLocations, customLocations);
+
+  return {
+    generated_at_utc: bundle.report?.generated_at_utc || bundle.history?.generated_at_utc || null,
+    updated_at_utc: bundle.watchlist?.updated_at_utc || null,
+    locations: merged,
+    counts: {
+      total: merged.length,
+      dynamic: dynamicLocations.length,
+      custom: customLocations.length
+    }
+  };
+}
+
+function collectKnownLocationsStatic(report, history, extraLocations = []) {
+  const list = [];
+
+  const zones = Array.isArray(report?.zones) ? report.zones : [];
+  for (const zone of zones) {
+    if (typeof zone?.name === "string" && zone.name.trim()) {
+      list.push(zone.name.trim());
+    }
+  }
+
+  const actuals = Array.isArray(history?.actuals) ? history.actuals : [];
+  for (const row of actuals) {
+    if (typeof row?.location === "string" && row.location.trim()) {
+      list.push(row.location.trim());
+    }
+  }
+
+  const forecasts = Array.isArray(history?.forecasts) ? history.forecasts : [];
+  for (const row of forecasts) {
+    if (typeof row?.location === "string" && row.location.trim()) {
+      list.push(row.location.trim());
+    }
+  }
+
+  for (const extra of extraLocations) {
+    if (typeof extra === "string" && extra.trim()) {
+      list.push(extra.trim());
+    }
+  }
+
+  return mergeLocationsStatic(list);
+}
+
+function mergeLocationsStatic(...groups) {
+  const merged = [];
+  const seen = new Set();
+
+  for (const group of groups) {
+    if (!Array.isArray(group)) {
+      continue;
+    }
+
+    for (const raw of group) {
+      const value = `${raw || ""}`.trim();
+      if (!value) {
+        continue;
+      }
+
+      const key = normalizeLocation(value);
+      if (seen.has(key)) {
+        continue;
+      }
+
+      seen.add(key);
+      merged.push(value);
+    }
+  }
+
+  return merged.sort((a, b) => a.localeCompare(b));
+}
+
+function resolveLocationFromStatic(location, knownLocations) {
+  const normalized = normalizeLocation(location);
+  if (!normalized) {
+    return "";
+  }
+
+  const exact = knownLocations.find((item) => normalizeLocation(item) === normalized);
+  return exact || location.trim();
+}
+
+function hasLocationInListStatic(list, location) {
+  const normalized = normalizeLocation(location);
+  return Array.isArray(list) && list.some((item) => normalizeLocation(item) === normalized);
+}
+
+function buildActualConditionStatic(item) {
+  const pieces = [];
+  const min = toNumber(item?.temp_min);
+  const max = toNumber(item?.temp_max);
+  const wind = toNumber(item?.wind_max);
+
+  if (min !== null && max !== null) {
+    pieces.push(`Min ${min.toFixed(1)} C / Max ${max.toFixed(1)} C`);
+  }
+
+  if (wind !== null) {
+    pieces.push(`Wind ${wind.toFixed(1)} km/h`);
+  }
+
+  return pieces.join(" | ") || "Observed weather";
+}
+
+function averageValues(a, b) {
+  const hasA = Number.isFinite(a);
+  const hasB = Number.isFinite(b);
+
+  if (hasA && hasB) {
+    return (a + b) / 2;
+  }
+
+  if (hasA) {
+    return a;
+  }
+
+  if (hasB) {
+    return b;
+  }
+
+  return null;
 }
 
 function parseJsonSafely(text) {
