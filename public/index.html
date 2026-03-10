@@ -4,113 +4,113 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Yuen Yuen's Weather</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/asset/yuen_yuen_icon.png?v=20260310" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/asset/yuen_yuen_icon.png?v=20260310" />
+    <link rel="shortcut icon" href="/asset/yuen_yuen_icon.png?v=20260310" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/asset/yuen_yuen_icon.png?v=20260310" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Sora:wght@400;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Sora:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <div class="bg-glow bg-glow-a"></div>
-    <div class="bg-glow bg-glow-b"></div>
-    <div class="bg-grid"></div>
-
-    <header class="hero">
-      <div>
-        <p class="eyebrow">Yuen Yuen AIBot Integration</p>
-        <h1>Yuen Yuen's Weather</h1>
-        <p class="subhead">
-          Daily weather, benchmark, and history dashboard with live watchlist updates sent back to Yuen Yuen AIBot.
-        </p>
-      </div>
-      <form id="searchForm" class="search-form" autocomplete="off">
-        <label class="field-label" for="locationInput">Location</label>
-        <div class="field-row">
-          <input id="locationInput" name="location" placeholder="Hong Kong" required />
-          <button id="loadBtn" type="submit">Load Dashboard</button>
+    <header class="hero-header" aria-label="Yuen Yuen Weather Banner">
+      <div class="hero-topbar">
+        <div class="brand">
+          <button id="homeBtn" type="button" class="brand-home" title="Back to weather cards" aria-label="Back to weather cards">
+            <img class="brand-icon" src="/asset/yuen_yuen_icon.png" alt="Yuen Yuen icon" />
+          </button>
+          <div>
+            <p class="eyebrow">Yuen Yuen Weather</p>
+          </div>
         </div>
-      </form>
+        <div class="topbar-actions">
+          <button id="addLocationBtn" type="button" class="icon-btn" title="Add location" aria-label="Add location">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
+          <button id="refreshAllBtn" type="button" class="icon-btn" title="Refresh locations" aria-label="Refresh locations">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20 12a8 8 0 1 1-2.35-5.65M20 4v4h-4" />
+            </svg>
+          </button>
+        </div>
+      </div>
     </header>
 
-    <p id="statusText" class="status">Ready.</p>
-
-    <main class="dashboard">
-      <section class="panel panel-daily">
-        <h2>Daily Weather</h2>
-        <div class="metric-grid">
-          <article>
-            <h3>Condition</h3>
-            <p id="dailyCondition">-</p>
-          </article>
-          <article>
-            <h3>Temperature</h3>
-            <p id="dailyTemp">-</p>
-          </article>
-          <article>
-            <h3>Humidity</h3>
-            <p id="dailyHumidity">-</p>
-          </article>
-          <article>
-            <h3>Wind</h3>
-            <p id="dailyWind">-</p>
-          </article>
-        </div>
-        <p class="muted">Updated: <span id="dailyUpdated">-</span></p>
+    <main>
+      <section id="overviewPage" class="page overview-page">
+        <p id="statusText" class="status status-hidden" aria-live="polite"></p>
+        <div id="locationGrid" class="location-grid" aria-live="polite"></div>
       </section>
 
-      <section class="panel panel-benchmark">
-        <h2>Benchmark</h2>
-        <div class="metric-grid metric-grid-three">
-          <article>
-            <h3>Score</h3>
-            <p id="benchmarkScore">-</p>
-          </article>
-          <article>
-            <h3>Delta</h3>
-            <p id="benchmarkDelta">-</p>
-          </article>
-          <article>
-            <h3>Source</h3>
-            <p id="benchmarkSource">-</p>
-          </article>
-        </div>
-      </section>
-
-      <section class="panel panel-history">
-        <h2>History</h2>
-        <ul id="historyList" class="history-list"></ul>
-      </section>
-
-      <section class="panel panel-watchlist">
-        <div class="panel-top">
-          <h2>Forecast Watchlist</h2>
-          <button id="refreshWatchlistBtn" type="button" class="ghost-btn">Refresh</button>
-        </div>
-
-        <form id="addLocationForm" class="add-form" autocomplete="off">
-          <label class="field-label" for="newLocationInput">Add new location</label>
-          <div class="field-row">
-            <input id="newLocationInput" name="newLocation" placeholder="Tokyo" required />
-            <button id="addBtn" type="submit">Add to AIBot</button>
+      <section id="detailPage" class="page detail-page is-hidden">
+        <div class="detail-top">
+          <div>
+            <h2 id="selectedLocationName">-</h2>
+            <p id="selectedUpdated" class="muted">-</p>
           </div>
-        </form>
+        </div>
 
-        <div id="watchlistList" class="chip-wrap"></div>
-      </section>
+        <section class="panel metrics-panel">
+          <div class="metrics-grid">
+            <article>
+              <h3>Condition</h3>
+              <p id="dailyCondition">-</p>
+            </article>
+            <article>
+              <h3>Temperature</h3>
+              <p id="dailyTemp">-</p>
+            </article>
+            <article>
+              <h3>Low / High</h3>
+              <p id="dailyLowHigh">-</p>
+            </article>
+            <article>
+              <h3>Wind</h3>
+              <p id="dailyWind">-</p>
+            </article>
+            <article>
+              <h3>Benchmark Score</h3>
+              <p id="benchmarkScore">-</p>
+            </article>
+            <article>
+              <h3>Top Source</h3>
+              <p id="benchmarkSource">-</p>
+            </article>
+          </div>
+        </section>
 
-      <section class="panel panel-raw">
-        <h2>Raw Payload</h2>
-        <pre id="rawPayload">-</pre>
+        <section class="panel sports-panel">
+          <div class="panel-head">
+            <h3>Sport Activity Recommendation</h3>
+            <p id="sportHint" class="muted">Based on local suitability data</p>
+          </div>
+          <div id="sportGrid" class="sport-grid"></div>
+        </section>
+
+        <section class="panel benchmark-panel">
+          <div class="panel-head">
+            <h3>Benchmark Sources</h3>
+            <p id="benchmarkDelta" class="muted">-</p>
+          </div>
+          <div id="benchmarkList" class="benchmark-list"></div>
+        </section>
+
+        <section class="panel history-panel">
+          <div class="panel-head">
+            <h3>Historical Trend</h3>
+            <p id="historyMeta" class="muted">-</p>
+          </div>
+          <div id="historyChart" class="history-chart"></div>
+          <ul id="historyList" class="history-list"></ul>
+        </section>
       </section>
     </main>
-
-    <footer>
-      <span>Yuen Yuen's Weather</span>
-      <span>Modern web UI for Yuen Yuen AIBot weather data</span>
-    </footer>
-
-    <script type="module" src="/app.js"></script>
   </body>
+  <script type="module" src="/app.js"></script>
 </html>

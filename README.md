@@ -1,15 +1,21 @@
 # Yuen Yuen's Weather
 
-A modern weather dashboard that connects to **Yuen Yuen AIBot** for:
-- Daily weather
-- Benchmark data
-- Historical weather data
-- Weather watchlist management (including adding new locations)
+A modern weather dashboard powered by local weather JSON snapshots in `public/data`.
 
 ## Local path
 This project is intended to live at:
 
 `/Users/felixlee/Documents/YuenYuenWeatherSite`
+
+## Data source (all weather content)
+All weather content is loaded from these files:
+
+- `public/data/weather_latest_report.json` (daily by location)
+- `public/data/weather_benchmarks_latest.json` (benchmark summary)
+- `public/data/weather_history_recent.json` (history + forecasts)
+- `public/data/weather_watchlist.json` (custom user-added locations)
+
+The backend API reads these files on each request, so updates to the files are reflected immediately.
 
 ## Run locally
 ```bash
@@ -22,15 +28,14 @@ Open:
 
 [http://127.0.0.1:4173](http://127.0.0.1:4173)
 
-## Configure AIBot API
-Set `.env` values to match your AIBot weather API.
+## Optional AIBot sync for new watchlist locations
+When users add a location from the UI, it is always saved to `public/data/weather_watchlist.json`.
 
-- `AIBOT_BASE_URL`: Base URL of Yuen Yuen AIBot
-- `AIBOT_*_PATHS`: Comma-separated endpoint candidates
+If you also want to forward that location to Yuen Yuen AIBot, set:
 
-The server tries each path in order and uses the first successful response.
+- `AIBOT_WATCHLIST_SYNC_URL` in `.env`
 
-## API endpoints in this site
+## API endpoints
 - `GET /health`
 - `GET /api/config`
 - `GET /api/weather?location=<name>`
@@ -39,5 +44,3 @@ The server tries each path in order and uses the first successful response.
 - `GET /api/weather/history?location=<name>`
 - `GET /api/weather/watchlist`
 - `POST /api/weather/watchlist` with JSON body: `{ "location": "Tokyo" }`
-
-`POST /api/weather/watchlist` forwards the new location to Yuen Yuen AIBot so the forecast watchlist can be updated upstream.
