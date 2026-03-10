@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Yuen Yuen's Weather</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Sora:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="bg-glow bg-glow-a"></div>
+    <div class="bg-glow bg-glow-b"></div>
+    <div class="bg-grid"></div>
+
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Yuen Yuen AIBot Integration</p>
+        <h1>Yuen Yuen's Weather</h1>
+        <p class="subhead">
+          Daily weather, benchmark, and history dashboard with live watchlist updates sent back to Yuen Yuen AIBot.
+        </p>
+      </div>
+      <form id="searchForm" class="search-form" autocomplete="off">
+        <label class="field-label" for="locationInput">Location</label>
+        <div class="field-row">
+          <input id="locationInput" name="location" placeholder="Hong Kong" required />
+          <button id="loadBtn" type="submit">Load Dashboard</button>
+        </div>
+      </form>
+    </header>
+
+    <p id="statusText" class="status">Ready.</p>
+
+    <main class="dashboard">
+      <section class="panel panel-daily">
+        <h2>Daily Weather</h2>
+        <div class="metric-grid">
+          <article>
+            <h3>Condition</h3>
+            <p id="dailyCondition">-</p>
+          </article>
+          <article>
+            <h3>Temperature</h3>
+            <p id="dailyTemp">-</p>
+          </article>
+          <article>
+            <h3>Humidity</h3>
+            <p id="dailyHumidity">-</p>
+          </article>
+          <article>
+            <h3>Wind</h3>
+            <p id="dailyWind">-</p>
+          </article>
+        </div>
+        <p class="muted">Updated: <span id="dailyUpdated">-</span></p>
+      </section>
+
+      <section class="panel panel-benchmark">
+        <h2>Benchmark</h2>
+        <div class="metric-grid metric-grid-three">
+          <article>
+            <h3>Score</h3>
+            <p id="benchmarkScore">-</p>
+          </article>
+          <article>
+            <h3>Delta</h3>
+            <p id="benchmarkDelta">-</p>
+          </article>
+          <article>
+            <h3>Source</h3>
+            <p id="benchmarkSource">-</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel panel-history">
+        <h2>History</h2>
+        <ul id="historyList" class="history-list"></ul>
+      </section>
+
+      <section class="panel panel-watchlist">
+        <div class="panel-top">
+          <h2>Forecast Watchlist</h2>
+          <button id="refreshWatchlistBtn" type="button" class="ghost-btn">Refresh</button>
+        </div>
+
+        <form id="addLocationForm" class="add-form" autocomplete="off">
+          <label class="field-label" for="newLocationInput">Add new location</label>
+          <div class="field-row">
+            <input id="newLocationInput" name="newLocation" placeholder="Tokyo" required />
+            <button id="addBtn" type="submit">Add to AIBot</button>
+          </div>
+        </form>
+
+        <div id="watchlistList" class="chip-wrap"></div>
+      </section>
+
+      <section class="panel panel-raw">
+        <h2>Raw Payload</h2>
+        <pre id="rawPayload">-</pre>
+      </section>
+    </main>
+
+    <footer>
+      <span>Yuen Yuen's Weather</span>
+      <span>Modern web UI for Yuen Yuen AIBot weather data</span>
+    </footer>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

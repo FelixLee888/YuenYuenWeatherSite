@@ -1,0 +1,14 @@
+{
+  "name": "yuen-yuen-weather",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Yuen Yuen's Weather website with AIBot weather data integration",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
