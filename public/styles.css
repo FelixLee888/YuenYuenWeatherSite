@@ -20,6 +20,8 @@
 html,
 body {
   margin: 0;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -177,7 +179,9 @@ button:disabled {
 }
 
 main {
+  width: 100%;
   min-height: calc(100dvh - 108px);
+  overflow-x: clip;
 }
 
 .overview-page {
@@ -422,6 +426,7 @@ main {
   display: grid;
   gap: 0.75rem;
   width: min(100%, 980px);
+  max-width: 100%;
   margin-inline: auto;
 }
 
@@ -453,6 +458,9 @@ main {
   border-radius: 14px;
   padding: 0.8rem;
   box-shadow: var(--shadow);
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .panel-head {
@@ -479,6 +487,7 @@ main {
   border: 1px solid #d8e4f4;
   background: var(--surface-alt);
   padding: 0.54rem 0.6rem;
+  min-width: 0;
 }
 
 .metrics-grid h3 {
@@ -493,6 +502,7 @@ main {
   margin: 0.34rem 0 0;
   font-size: 1rem;
   font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .sport-grid {
@@ -562,10 +572,12 @@ main {
   border-radius: 10px;
   background: var(--surface-alt);
   padding: 0.5rem 0.58rem;
+  min-width: 0;
 }
 
 .benchmark-row strong {
   font-size: 0.88rem;
+  overflow-wrap: anywhere;
 }
 
 .benchmark-row span {
@@ -641,10 +653,12 @@ main {
   grid-template-columns: 1fr auto auto;
   gap: 0.5rem;
   align-items: center;
+  min-width: 0;
 }
 
 .history-item span {
   color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 @keyframes fade-in {
@@ -815,7 +829,7 @@ main {
   .detail-page {
     gap: 0.58rem;
     width: 100%;
-    padding-bottom: max(0.45rem, env(safe-area-inset-bottom));
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom));
   }
 
   .metrics-grid {
