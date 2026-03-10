@@ -30,7 +30,6 @@ const state = {
   focusedLocation: "",
   selectedLocation: "",
   isMobileLayout: false,
-  isCompactPortraitLayout: false,
   isTransitioningDetail: false
 };
 
@@ -65,13 +64,6 @@ function isMobileViewport() {
   return window.matchMedia("(pointer: coarse)").matches && window.matchMedia("(max-width: 1024px)").matches;
 }
 
-function isCompactPortraitLayout() {
-  return (
-    isMobileViewport() &&
-    window.matchMedia("(max-width: 760px)").matches &&
-    window.matchMedia("(orientation: portrait)").matches
-  );
-}
 
 function bindEvents() {
   elements.homeBtn.addEventListener("click", () => {
@@ -104,11 +96,6 @@ function bindEvents() {
 
     const location = button.getAttribute("data-location") || "";
     if (!location) {
-      return;
-    }
-
-    if (isCompactPortraitLayout()) {
-      await openDetailPage(location);
       return;
     }
 
@@ -148,10 +135,8 @@ function bindEvents() {
 
   window.addEventListener("resize", () => {
     const mobileNow = isMobileViewport();
-    const compactPortraitNow = isCompactPortraitLayout();
-    if (mobileNow !== state.isMobileLayout || compactPortraitNow !== state.isCompactPortraitLayout) {
+    if (mobileNow !== state.isMobileLayout) {
       state.isMobileLayout = mobileNow;
-      state.isCompactPortraitLayout = compactPortraitNow;
       renderLocationCards();
       return;
     }
@@ -162,7 +147,6 @@ function bindEvents() {
 
 async function initialize() {
   state.isMobileLayout = isMobileViewport();
-  state.isCompactPortraitLayout = isCompactPortraitLayout();
   await loadOverview();
 
   const queryLocation = (new URLSearchParams(window.location.search).get("location") || "").trim();
@@ -317,11 +301,9 @@ function showOverviewPage() {
   elements.overviewPage.classList.remove("is-hidden");
   elements.detailPage.classList.add("is-hidden");
   window.history.replaceState(window.history.state, "", window.location.pathname);
-  const hint = isCompactPortraitLayout()
-    ? "Showing predefined locations. Tap a card for details."
-    : isMobileViewport()
-      ? "Showing predefined locations. Tap a focused card again for details."
-      : "Showing predefined locations. Double-click a card for details.";
+  const hint = isMobileViewport()
+    ? "Showing predefined locations. Tap a focused card again for details."
+    : "Showing predefined locations. Double-click a card for details.";
   setStatus(hint);
 }
 
@@ -346,11 +328,9 @@ function renderLocationCards() {
     return;
   }
 
-  const actionHint = isCompactPortraitLayout()
-    ? "Tap for detail view"
-    : isMobileViewport()
-      ? "Tap again for detail view"
-      : "Double-click for detail view";
+  const actionHint = isMobileViewport()
+    ? "Tap again for detail view"
+    : "Double-click for detail view";
 
   for (let index = 0; index < state.locations.length; index += 1) {
     const location = state.locations[index];
@@ -440,26 +420,6 @@ function applyCoverflowTransforms() {
     state.focusedLocation = cards[0].getAttribute("data-location") || "";
   }
 
-  if (isCompactPortraitLayout()) {
-    for (let index = 0; index < cards.length; index += 1) {
-      const card = cards[index];
-      const isFocused = index === focusedIndex;
-      card.classList.toggle("is-focused", isFocused);
-      card.style.setProperty("--card-base-transform", "none");
-      card.style.setProperty("--card-base-opacity", "1");
-      card.style.setProperty("--card-base-filter", "brightness(1)");
-      card.style.transform = "";
-      card.style.opacity = "";
-      card.style.filter = "";
-      card.style.zIndex = "";
-      card.style.pointerEvents = "";
-    }
-
-    requestAnimationFrame(() => {
-      centerCardInViewport(cards, focusedIndex);
-    });
-    return;
-  }
 
   const stageWidth = elements.locationGrid.clientWidth || window.innerWidth || 1200;
   const cardWidth = cards[0].getBoundingClientRect().width || 480;
@@ -499,34 +459,6 @@ function applyCoverflowTransforms() {
   }
 }
 
-function centerCardInViewport(cards, focusedIndex) {
-  if (!Array.isArray(cards) || focusedIndex < 0 || focusedIndex >= cards.length) {
-    return;
-  }
-
-  const card = cards[focusedIndex];
-  if (!(card instanceof HTMLElement)) {
-    return;
-  }
-
-  const grid = elements.locationGrid;
-  if (!(grid instanceof HTMLElement) || grid.scrollWidth <= grid.clientWidth) {
-    return;
-  }
-
-  const gridRect = grid.getBoundingClientRect();
-  const cardRect = card.getBoundingClientRect();
-  const centerOffset = (gridRect.width - cardRect.width) / 2;
-  const rawLeft = grid.scrollLeft + (cardRect.left - gridRect.left) - centerOffset;
-  const maxLeft = Math.max(0, grid.scrollWidth - grid.clientWidth);
-  const targetLeft = Math.min(maxLeft, Math.max(0, rawLeft));
-
-  if (Math.abs(grid.scrollLeft - targetLeft) < 1) {
-    return;
-  }
-
-  grid.scrollTo({ left: targetLeft, behavior: "smooth" });
-}
 
 async function playDetailTransition(location) {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {

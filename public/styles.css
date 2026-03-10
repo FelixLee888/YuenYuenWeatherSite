@@ -764,36 +764,33 @@ main {
   }
 
   .location-grid {
-    --mobile-card-width: min(240px, 74vw);
-    --deck-top-offset: 0px;
-    height: auto;
-    display: flex;
-    gap: 0.58rem;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    scroll-padding-inline: max(0px, calc((100% - var(--mobile-card-width)) / 2));
-    padding-inline: max(0px, calc((100% - var(--mobile-card-width)) / 2));
-    -webkit-overflow-scrolling: touch;
+    --deck-top-offset: 12px;
+    height: clamp(392px, 71dvh, 552px);
+    display: block;
+    overflow: hidden;
+    scroll-snap-type: none;
+    scroll-padding-inline: 0;
+    padding-inline: 0;
     padding-top: 0;
-    padding-bottom: 0.4rem;
-    perspective: none;
-    transform-style: flat;
+    padding-bottom: 0.28rem;
+    perspective: 1400px;
+    transform-style: preserve-3d;
   }
 
   .location-card {
-    position: relative;
-    left: auto;
-    top: auto;
-    width: var(--mobile-card-width);
-    min-width: var(--mobile-card-width);
+    position: absolute;
+    left: 50%;
+    top: var(--deck-top-offset);
+    width: clamp(200px, 66vw, 286px);
+    min-width: 0;
     aspect-ratio: 9 / 16;
     border-radius: 13px;
     padding: 0.72rem 0.68rem;
-    scroll-snap-align: center;
-    scroll-snap-stop: always;
-    transform: none !important;
-    opacity: 1 !important;
-    filter: none !important;
+    scroll-snap-align: none;
+    scroll-snap-stop: normal;
+    transform: var(--card-base-transform) !important;
+    opacity: var(--card-base-opacity) !important;
+    filter: var(--card-base-filter) !important;
   }
 
   .location-name {
@@ -1092,13 +1089,11 @@ main {
   }
 
   .location-grid {
-    --mobile-card-width: min(220px, 78vw);
-    gap: 0.5rem;
+    --deck-top-offset: 10px;
   }
 
   .location-card {
-    width: var(--mobile-card-width);
-    min-width: var(--mobile-card-width);
+    width: clamp(186px, 72vw, 242px);
   }
 
   .detail-top {
