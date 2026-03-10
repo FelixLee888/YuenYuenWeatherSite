@@ -421,6 +421,8 @@ main {
 .detail-page {
   display: grid;
   gap: 0.75rem;
+  width: min(100%, 980px);
+  margin-inline: auto;
 }
 
 .detail-top {
@@ -430,9 +432,14 @@ main {
   gap: 0.75rem;
 }
 
+.detail-summary {
+  min-width: 0;
+}
+
 .detail-top h2 {
   margin: 0;
   font-size: 1.28rem;
+  overflow-wrap: anywhere;
 }
 
 .muted {
@@ -806,31 +813,68 @@ main {
   }
 
   .detail-page {
-    gap: 0.62rem;
+    gap: 0.58rem;
+    width: 100%;
+    padding-bottom: max(0.45rem, env(safe-area-inset-bottom));
   }
 
-  .metrics-grid,
+  .metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.42rem;
+  }
+
+  .metrics-grid article {
+    min-height: 74px;
+    padding: 0.5rem 0.52rem;
+  }
+
+  .metrics-grid h3 {
+    font-size: 0.62rem;
+    letter-spacing: 0.055em;
+  }
+
+  .metrics-grid p {
+    margin-top: 0.24rem;
+    font-size: 0.9rem;
+    line-height: 1.24;
+    overflow-wrap: anywhere;
+  }
+
   .sport-grid {
     grid-template-columns: 1fr;
   }
 
   .detail-top {
+    position: sticky;
+    top: max(0.18rem, env(safe-area-inset-top));
+    z-index: 9;
     flex-direction: column;
     align-items: stretch;
-    gap: 0.56rem;
+    gap: 0.34rem;
+    margin-bottom: 0.08rem;
+    padding: 0.48rem 0.52rem;
+    border: 1px solid rgba(192, 211, 235, 0.8);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.76);
+    backdrop-filter: blur(7px);
   }
 
-  .btn-secondary {
+  .detail-summary {
     width: 100%;
-    min-height: 42px;
   }
 
   .detail-top h2 {
-    font-size: 1.14rem;
+    font-size: clamp(1.04rem, 5.8vw, 1.24rem);
+    line-height: 1.14;
+  }
+
+  #selectedUpdated {
+    margin-top: 0.16rem;
+    font-size: 0.76rem;
   }
 
   .panel {
-    padding: 0.68rem;
+    padding: 0.64rem;
     border-radius: 12px;
   }
 
@@ -842,10 +886,26 @@ main {
 
   .panel-head h3 {
     font-size: 0.92rem;
+    line-height: 1.2;
   }
 
   .muted {
     font-size: 0.82rem;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+
+  .sport-card {
+    padding: 0.54rem;
+  }
+
+  .sport-title {
+    font-size: 0.86rem;
+  }
+
+  .sport-score {
+    margin-top: 0.36rem;
+    font-size: 0.72rem;
   }
 
   .benchmark-row {
@@ -860,14 +920,25 @@ main {
     font-size: 0.76rem;
   }
 
+  .benchmark-row strong {
+    font-size: 0.84rem;
+    overflow-wrap: anywhere;
+  }
+
+  .benchmark-row span {
+    font-size: 0.76rem;
+  }
+
   .history-chart {
     min-height: 136px;
     padding: 0.44rem 0.24rem 0.34rem;
+    scroll-snap-type: x proximity;
   }
 
   .chart-col {
     min-width: 36px;
     gap: 0.26rem;
+    scroll-snap-align: end;
   }
 
   .chart-wrap {
@@ -887,6 +958,16 @@ main {
     grid-template-columns: 1fr;
     gap: 0.28rem;
     padding: 0.46rem 0.5rem;
+  }
+
+  .history-item strong {
+    font-size: 0.86rem;
+  }
+
+  .history-item span {
+    font-size: 0.8rem;
+    line-height: 1.24;
+    overflow-wrap: anywhere;
   }
 }
 
@@ -918,6 +999,19 @@ main {
   .location-card {
     width: var(--mobile-card-width);
     min-width: var(--mobile-card-width);
+  }
+
+  .detail-top {
+    top: 0;
+    padding: 0.42rem 0.46rem;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel {
+    padding: 0.6rem;
   }
 
   .mini-stat strong {
