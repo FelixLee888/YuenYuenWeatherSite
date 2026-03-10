@@ -1,6 +1,6 @@
 {
-  "generated_at_utc": "2026-03-10T17:19:02+00:00",
-  "mode": "compact",
+  "generated_at_utc": "2026-03-10T18:20:31+00:00",
+  "mode": "full",
   "run_date": "2026-03-10",
   "forecast_date": "2026-03-11",
   "eval_date": "2026-03-09",
@@ -76,7 +76,7 @@
         "openweather": {
           "source_label": "OpenWeather",
           "temp_min": 5.25,
-          "temp_max": 8.32,
+          "temp_max": 8.33,
           "wind_max": 33.48
         }
       }
@@ -87,12 +87,12 @@
       "lon": -5.0036,
       "ensemble": {
         "temp_min": -2.0,
-        "temp_max": 1.2,
-        "wind_max": 55.95,
+        "temp_max": 1.23,
+        "wind_max": 55.36,
         "spread_temp": 6.7,
-        "spread_wind": 101.44
+        "spread_wind": 95.0
       },
-      "briefing": "- Ben Nevis - -2.0 -> 1.2 C. very strong wind, peaking near 55.9 km/h (34.8 mph); higher model spread on temperature, higher model spread on wind. best window is brief lower-level outings only. Early frost/ice risk on exposed sections.",
+      "briefing": "- Ben Nevis - -2.0 -> 1.2 C. very strong wind, peaking near 55.4 km/h (34.4 mph); higher model spread on temperature, higher model spread on wind. best window is brief lower-level outings only. Early frost/ice risk on exposed sections.",
       "suitability": {
         "cycling": "Poor",
         "hiking": "Poor",
@@ -115,18 +115,18 @@
           "source_label": "UK Met Office",
           "temp_min": -4.0,
           "temp_max": -2.0,
-          "wind_max": 131.97
+          "wind_max": 125.53
         },
         "open_meteo": {
           "source_label": "Open-Meteo",
           "temp_min": -3.9,
-          "temp_max": -1.6,
+          "temp_max": -1.5,
           "wind_max": 59.8
         },
         "openweather": {
           "source_label": "OpenWeather",
           "temp_min": -1.59,
-          "temp_max": 1.72,
+          "temp_max": 1.73,
           "wind_max": 30.53
         }
       }
@@ -137,7 +137,7 @@
       "lon": -3.4258,
       "ensemble": {
         "temp_min": 1.33,
-        "temp_max": 5.05,
+        "temp_max": 5.08,
         "wind_max": 42.22,
         "spread_temp": 5.33,
         "spread_wind": 32.0
@@ -170,7 +170,7 @@
         "open_meteo": {
           "source_label": "Open-Meteo",
           "temp_min": 2.2,
-          "temp_max": 5.6,
+          "temp_max": 5.7,
           "wind_max": 36.0
         },
         "openweather": {
@@ -187,12 +187,12 @@
       "lon": -3.7,
       "ensemble": {
         "temp_min": -0.63,
-        "temp_max": 2.6,
-        "wind_max": 53.48,
-        "spread_temp": 5.16,
+        "temp_max": 2.55,
+        "wind_max": 53.33,
+        "spread_temp": 5.11,
         "spread_wind": 54.48
       },
-      "briefing": "- Cairngorms - -0.6 -> 2.6 C. very strong wind, peaking near 53.5 km/h (33.2 mph); higher model spread on temperature, higher model spread on wind. best window is brief lower-level outings only. Early frost/ice risk on exposed sections.",
+      "briefing": "- Cairngorms - -0.6 -> 2.5 C. very strong wind, peaking near 53.3 km/h (33.1 mph); higher model spread on temperature, higher model spread on wind. best window is brief lower-level outings only. Early frost/ice risk on exposed sections.",
       "suitability": {
         "cycling": "Poor",
         "hiking": "Poor",
@@ -215,18 +215,18 @@
           "source_label": "UK Met Office",
           "temp_min": -4.0,
           "temp_max": -1.0,
-          "wind_max": 80.47
+          "wind_max": 78.86
         },
         "open_meteo": {
           "source_label": "Open-Meteo",
           "temp_min": -0.9,
-          "temp_max": 1.9,
+          "temp_max": 1.7,
           "wind_max": 55.1
         },
         "openweather": {
           "source_label": "OpenWeather",
           "temp_min": -0.03,
-          "temp_max": 4.16,
+          "temp_max": 4.11,
           "wind_max": 46.01
         }
       }
