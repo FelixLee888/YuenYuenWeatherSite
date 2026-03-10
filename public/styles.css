@@ -985,7 +985,93 @@ main {
   }
 }
 
-@media (max-width: 420px) {
+@media (max-width: 760px) and (orientation: landscape) {
+  .location-grid {
+    --deck-top-offset: 14px;
+    height: clamp(252px, 66dvh, 340px);
+    display: block;
+    overflow: hidden;
+    scroll-snap-type: none;
+    scroll-padding-inline: 0;
+    padding-inline: 0;
+    padding-top: 0;
+    padding-bottom: 0.18rem;
+    perspective: 1400px;
+    transform-style: preserve-3d;
+  }
+
+  .location-card {
+    position: absolute;
+    left: 50%;
+    top: var(--deck-top-offset);
+    width: clamp(170px, 27vw, 220px);
+    min-width: 0;
+    border-radius: 11px;
+    padding: 0.42rem 0.4rem;
+    scroll-snap-align: none;
+    scroll-snap-stop: normal;
+    transform: var(--card-base-transform) !important;
+    opacity: var(--card-base-opacity) !important;
+    filter: var(--card-base-filter) !important;
+  }
+
+  .location-name {
+    font-size: clamp(0.78rem, 2vw, 0.94rem);
+  }
+
+  .location-label {
+    font-size: 0.52rem;
+  }
+
+  .location-time {
+    font-size: 0.58rem;
+  }
+
+  .weather-icon {
+    font-size: 1rem;
+  }
+
+  .location-temp {
+    font-size: clamp(1.22rem, 3.3vw, 1.56rem);
+  }
+
+  .location-condition {
+    margin-top: 0.3rem;
+    font-size: 0.62rem;
+    line-height: 1.2;
+    min-height: 2.36em;
+    -webkit-line-clamp: 3;
+  }
+
+  .location-stats-grid {
+    margin-top: 0.34rem;
+    gap: 0.24rem;
+  }
+
+  .mini-stat {
+    border-radius: 7px;
+    padding: 0.22rem 0.26rem;
+  }
+
+  .mini-stat span {
+    font-size: 0.44rem;
+  }
+
+  .mini-stat strong {
+    font-size: 0.62rem;
+  }
+
+  .location-foot {
+    padding-top: 0.36rem;
+  }
+
+  .pill {
+    font-size: 0.52rem;
+    padding: 0.12rem 0.32rem;
+  }
+}
+
+@media (max-width: 420px) and (orientation: portrait) {
   .hero-topbar {
     padding-inline: 0;
   }

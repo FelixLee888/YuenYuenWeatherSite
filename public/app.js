@@ -30,6 +30,7 @@ const state = {
   focusedLocation: "",
   selectedLocation: "",
   isMobileLayout: false,
+  isCompactPortraitLayout: false,
   isTransitioningDetail: false
 };
 
@@ -61,7 +62,15 @@ bindEvents();
 initialize();
 
 function isMobileViewport() {
-  return window.matchMedia("(max-width: 760px)").matches;
+  return window.matchMedia("(pointer: coarse)").matches && window.matchMedia("(max-width: 1024px)").matches;
+}
+
+function isCompactPortraitLayout() {
+  return (
+    isMobileViewport() &&
+    window.matchMedia("(max-width: 760px)").matches &&
+    window.matchMedia("(orientation: portrait)").matches
+  );
 }
 
 function bindEvents() {
@@ -98,8 +107,20 @@ function bindEvents() {
       return;
     }
 
-    if (isMobileViewport()) {
+    if (isCompactPortraitLayout()) {
       await openDetailPage(location);
+      return;
+    }
+
+    if (isMobileViewport()) {
+      const alreadyFocused = normalizeLocation(state.focusedLocation) === normalizeLocation(location);
+      if (alreadyFocused) {
+        await openDetailPage(location);
+        return;
+      }
+
+      updateFocusedCard(location);
+      setStatus(`Tap ${location} again to open detail view.`);
       return;
     }
 
@@ -127,8 +148,10 @@ function bindEvents() {
 
   window.addEventListener("resize", () => {
     const mobileNow = isMobileViewport();
-    if (mobileNow !== state.isMobileLayout) {
+    const compactPortraitNow = isCompactPortraitLayout();
+    if (mobileNow !== state.isMobileLayout || compactPortraitNow !== state.isCompactPortraitLayout) {
       state.isMobileLayout = mobileNow;
+      state.isCompactPortraitLayout = compactPortraitNow;
       renderLocationCards();
       return;
     }
@@ -139,6 +162,7 @@ function bindEvents() {
 
 async function initialize() {
   state.isMobileLayout = isMobileViewport();
+  state.isCompactPortraitLayout = isCompactPortraitLayout();
   await loadOverview();
 
   const queryLocation = (new URLSearchParams(window.location.search).get("location") || "").trim();
@@ -293,9 +317,11 @@ function showOverviewPage() {
   elements.overviewPage.classList.remove("is-hidden");
   elements.detailPage.classList.add("is-hidden");
   window.history.replaceState(window.history.state, "", window.location.pathname);
-  const hint = isMobileViewport()
+  const hint = isCompactPortraitLayout()
     ? "Showing predefined locations. Tap a card for details."
-    : "Showing predefined locations. Double-click a card for details.";
+    : isMobileViewport()
+      ? "Showing predefined locations. Tap a focused card again for details."
+      : "Showing predefined locations. Double-click a card for details.";
   setStatus(hint);
 }
 
@@ -320,7 +346,11 @@ function renderLocationCards() {
     return;
   }
 
-  const actionHint = isMobileViewport() ? "Tap for detail view" : "Double-click for detail view";
+  const actionHint = isCompactPortraitLayout()
+    ? "Tap for detail view"
+    : isMobileViewport()
+      ? "Tap again for detail view"
+      : "Double-click for detail view";
 
   for (let index = 0; index < state.locations.length; index += 1) {
     const location = state.locations[index];
@@ -410,7 +440,7 @@ function applyCoverflowTransforms() {
     state.focusedLocation = cards[0].getAttribute("data-location") || "";
   }
 
-  if (window.matchMedia("(max-width: 760px)").matches) {
+  if (isCompactPortraitLayout()) {
     for (let index = 0; index < cards.length; index += 1) {
       const card = cards[index];
       const isFocused = index === focusedIndex;
