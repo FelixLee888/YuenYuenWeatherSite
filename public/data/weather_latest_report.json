@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-03-10T17:17:05+00:00",
+  "generated_at_utc": "2026-03-10T17:19:02+00:00",
   "mode": "compact",
   "run_date": "2026-03-10",
   "forecast_date": "2026-03-11",
@@ -76,7 +76,7 @@
         "openweather": {
           "source_label": "OpenWeather",
           "temp_min": 5.25,
-          "temp_max": 8.33,
+          "temp_max": 8.32,
           "wind_max": 33.48
         }
       }
@@ -187,9 +187,9 @@
       "lon": -3.7,
       "ensemble": {
         "temp_min": -0.63,
-        "temp_max": 2.61,
+        "temp_max": 2.6,
         "wind_max": 53.48,
-        "spread_temp": 5.17,
+        "spread_temp": 5.16,
         "spread_wind": 54.48
       },
       "briefing": "- Cairngorms - -0.6 -> 2.6 C. very strong wind, peaking near 53.5 km/h (33.2 mph); higher model spread on temperature, higher model spread on wind. best window is brief lower-level outings only. Early frost/ice risk on exposed sections.",
@@ -226,7 +226,7 @@
         "openweather": {
           "source_label": "OpenWeather",
           "temp_min": -0.03,
-          "temp_max": 4.17,
+          "temp_max": 4.16,
           "wind_max": 46.01
         }
       }

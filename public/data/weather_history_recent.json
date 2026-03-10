@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-03-10T17:17:05+00:00",
+  "generated_at_utc": "2026-03-10T17:19:02+00:00",
   "run_date": "2026-03-10",
   "window_days": 30,
   "start_date": "2026-02-09",
@@ -1896,7 +1896,7 @@
       "source": "openweather",
       "source_label": "OpenWeather",
       "location": "Cairngorms",
-      "temp_max": 4.17,
+      "temp_max": 4.16,
       "temp_min": -0.03,
       "wind_max": 46.01
     },
@@ -1906,7 +1906,7 @@
       "source": "openweather",
       "source_label": "OpenWeather",
       "location": "Glencoe",
-      "temp_max": 8.33,
+      "temp_max": 8.32,
       "temp_min": 5.25,
       "wind_max": 33.48
     },
