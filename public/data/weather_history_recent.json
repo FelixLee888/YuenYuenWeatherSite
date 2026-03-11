@@ -188,7 +188,7 @@
       "mae_temp_min": 2.46,
       "mae_wind_max": 4.42,
       "composite_error": 0.2351,
-      "confidence": 79.0,
+      "confidence": 79,
       "sample_count": 4
     },
     {
@@ -254,7 +254,7 @@
       "mae_temp_min": 1.52,
       "mae_wind_max": 5.31,
       "composite_error": 0.2616,
-      "confidence": 77.0,
+      "confidence": 77,
       "sample_count": 4
     },
     {
@@ -318,7 +318,7 @@
       "source_label": "OpenWeather",
       "mae_temp_max": 1.23,
       "mae_temp_min": 1.19,
-      "mae_wind_max": 5.0,
+      "mae_wind_max": 5,
       "composite_error": 0.2015,
       "confidence": 81.8,
       "sample_count": 4
@@ -364,7 +364,7 @@
       "mae_temp_min": 1.43,
       "mae_wind_max": 8.6,
       "composite_error": 0.2237,
-      "confidence": 80.0,
+      "confidence": 80,
       "sample_count": 4
     },
     {
@@ -404,7 +404,7 @@
       "date": "2026-03-01",
       "source": "openweather",
       "source_label": "OpenWeather",
-      "mae_temp_max": 2.0,
+      "mae_temp_max": 2,
       "mae_temp_min": 0.71,
       "mae_wind_max": 11.94,
       "composite_error": 0.3117,
@@ -463,7 +463,7 @@
       "mae_temp_min": 2.45,
       "mae_wind_max": 9.57,
       "composite_error": 0.4007,
-      "confidence": 67.0,
+      "confidence": 67,
       "sample_count": 4
     },
     {
@@ -551,7 +551,7 @@
       "mae_temp_min": 2.25,
       "mae_wind_max": 16.65,
       "composite_error": 0.4773,
-      "confidence": 62.0,
+      "confidence": 62,
       "sample_count": 4
     },
     {
@@ -975,7 +975,7 @@
       "source_label": "Open-Meteo",
       "weight": 0.254177,
       "weight_pct": 25.42,
-      "rolling_confidence": 77.0,
+      "rolling_confidence": 77,
       "lookback_days": 14
     },
     {
@@ -1065,7 +1065,7 @@
       "source_label": "Google Weather",
       "weight": 0.097788,
       "weight_pct": 9.78,
-      "rolling_confidence": 62.0,
+      "rolling_confidence": 62,
       "lookback_days": 14
     },
     {
@@ -1100,8 +1100,8 @@
       "source": "google_weather",
       "source_label": "Google Weather",
       "weight": 0.25,
-      "weight_pct": 25.0,
-      "rolling_confidence": 55.0,
+      "weight_pct": 25,
+      "rolling_confidence": 55,
       "lookback_days": 14
     },
     {
@@ -1109,8 +1109,8 @@
       "source": "met_no",
       "source_label": "MET Norway",
       "weight": 0.25,
-      "weight_pct": 25.0,
-      "rolling_confidence": 55.0,
+      "weight_pct": 25,
+      "rolling_confidence": 55,
       "lookback_days": 14
     },
     {
@@ -1118,8 +1118,8 @@
       "source": "open_meteo",
       "source_label": "Open-Meteo",
       "weight": 0.25,
-      "weight_pct": 25.0,
-      "rolling_confidence": 55.0,
+      "weight_pct": 25,
+      "rolling_confidence": 55,
       "lookback_days": 14
     },
     {
@@ -1127,8 +1127,8 @@
       "source": "openweather",
       "source_label": "OpenWeather",
       "weight": 0.25,
-      "weight_pct": 25.0,
-      "rolling_confidence": 55.0,
+      "weight_pct": 25,
+      "rolling_confidence": 55,
       "lookback_days": 14
     },
     {
@@ -1136,8 +1136,8 @@
       "source": "google_weather",
       "source_label": "Google Weather",
       "weight": 0.2,
-      "weight_pct": 20.0,
-      "rolling_confidence": 55.0,
+      "weight_pct": 20,
+      "rolling_confidence": 55,
       "lookback_days": 14
     },
     {
@@ -1145,8 +1145,8 @@
       "source": "met_no",
       "source_label": "MET Norway",
       "weight": 0.2,
-      "weight_pct": 20.0,
-      "rolling_confidence": 55.0,
+      "weight_pct": 20,
+      "rolling_confidence": 55,
       "lookback_days": 14
     },
     {
@@ -1154,8 +1154,8 @@
       "source": "met_office",
       "source_label": "UK Met Office",
       "weight": 0.2,
-      "weight_pct": 20.0,
-      "rolling_confidence": 55.0,
+      "weight_pct": 20,
+      "rolling_confidence": 55,
       "lookback_days": 14
     },
     {
@@ -1163,8 +1163,8 @@
       "source": "open_meteo",
       "source_label": "Open-Meteo",
       "weight": 0.2,
-      "weight_pct": 20.0,
-      "rolling_confidence": 55.0,
+      "weight_pct": 20,
+      "rolling_confidence": 55,
       "lookback_days": 14
     },
     {
@@ -1172,8 +1172,8 @@
       "source": "openweather",
       "source_label": "OpenWeather",
       "weight": 0.2,
-      "weight_pct": 20.0,
-      "rolling_confidence": 55.0,
+      "weight_pct": 20,
+      "rolling_confidence": 55,
       "lookback_days": 14
     }
   ],
@@ -1212,7 +1212,7 @@
       "lon": -3.4258,
       "temp_max": 6.8,
       "temp_min": 2.7,
-      "wind_max": 22.0
+      "wind_max": 22
     },
     {
       "date": "2026-03-09",
@@ -1238,7 +1238,7 @@
       "lat": 57.1,
       "lon": -3.7,
       "temp_max": 1.2,
-      "temp_min": -4.0,
+      "temp_min": -4,
       "wind_max": 14.9
     },
     {
@@ -1282,9 +1282,9 @@
       "location": "Glencoe",
       "lat": 56.68,
       "lon": -5.1,
-      "temp_max": 9.0,
+      "temp_max": 9,
       "temp_min": 2.3,
-      "wind_max": 20.0
+      "wind_max": 20
     },
     {
       "date": "2026-03-07",
@@ -1309,8 +1309,8 @@
       "location": "Cairngorms",
       "lat": 57.1,
       "lon": -3.7,
-      "temp_max": 0.0,
-      "temp_min": -8.0,
+      "temp_max": 0,
+      "temp_min": -8,
       "wind_max": 10.8
     },
     {
@@ -1346,7 +1346,7 @@
       "lat": 57.1,
       "lon": -3.7,
       "temp_max": 3.6,
-      "temp_min": -2.0,
+      "temp_min": -2,
       "wind_max": 23.8
     },
     {
@@ -1372,7 +1372,7 @@
       "location": "Ben Nevis",
       "lat": 56.7969,
       "lon": -5.0036,
-      "temp_max": 0.0,
+      "temp_max": 0,
       "temp_min": -6.7,
       "wind_max": 16.9
     },
@@ -1381,7 +1381,7 @@
       "location": "Cairngorms",
       "lat": 57.1,
       "lon": -3.7,
-      "temp_max": 3.0,
+      "temp_max": 3,
       "temp_min": -6.1,
       "wind_max": 18.4
     },
@@ -1436,7 +1436,7 @@
       "lat": 56.8526,
       "lon": -3.4258,
       "temp_max": 6.9,
-      "temp_min": 0.0,
+      "temp_min": 0,
       "wind_max": 21.1
     },
     {
@@ -1581,14 +1581,14 @@
       "lon": -3.4258,
       "temp_max": 5.4,
       "temp_min": -1.8,
-      "wind_max": 21.0
+      "wind_max": 21
     },
     {
       "date": "2026-02-26",
       "location": "Ben Nevis",
       "lat": 56.7969,
       "lon": -5.0036,
-      "temp_max": 1.0,
+      "temp_max": 1,
       "temp_min": -1.8,
       "wind_max": 26.6
     },
@@ -1608,7 +1608,7 @@
       "lon": -5.1,
       "temp_max": 9.3,
       "temp_min": 6.5,
-      "wind_max": 28.0
+      "wind_max": 28
     },
     {
       "date": "2026-02-26",
@@ -1679,7 +1679,7 @@
       "lat": 56.68,
       "lon": -5.1,
       "temp_max": 9.6,
-      "temp_min": 7.0,
+      "temp_min": 7,
       "wind_max": 17.9
     },
     {
@@ -1707,7 +1707,7 @@
       "lon": -3.7,
       "temp_max": 1.4,
       "temp_min": -0.9,
-      "wind_max": 24.0
+      "wind_max": 24
     },
     {
       "date": "2026-02-23",
@@ -1716,7 +1716,7 @@
       "lon": -5.1,
       "temp_max": 9.4,
       "temp_min": 5.2,
-      "wind_max": 22.0
+      "wind_max": 22
     },
     {
       "date": "2026-02-23",
@@ -1737,7 +1737,7 @@
       "location": "Ben Nevis",
       "temp_max": 4.7,
       "temp_min": 2.5,
-      "wind_max": 106.0
+      "wind_max": 106
     },
     {
       "run_date": "2026-03-10",
@@ -1747,7 +1747,7 @@
       "location": "Cairngorms",
       "temp_max": 3.4,
       "temp_min": 0.7,
-      "wind_max": 90.0
+      "wind_max": 90
     },
     {
       "run_date": "2026-03-10",
@@ -1755,9 +1755,9 @@
       "source": "google_weather",
       "source_label": "Google Weather",
       "location": "Glencoe",
-      "temp_max": 6.0,
+      "temp_max": 6,
       "temp_min": 3.8,
-      "wind_max": 89.0
+      "wind_max": 89
     },
     {
       "run_date": "2026-03-10",
@@ -1767,7 +1767,7 @@
       "location": "Glenshee",
       "temp_max": 5.3,
       "temp_min": 1.9,
-      "wind_max": 64.0
+      "wind_max": 64
     },
     {
       "run_date": "2026-03-10",
@@ -1777,7 +1777,7 @@
       "location": "Passo del Tonale",
       "temp_max": -0.7,
       "temp_min": -4.6,
-      "wind_max": 23.0
+      "wind_max": 23
     },
     {
       "run_date": "2026-03-10",
@@ -1825,7 +1825,7 @@
       "source": "met_no",
       "source_label": "MET Norway",
       "location": "Passo del Tonale",
-      "temp_max": 2.0,
+      "temp_max": 2,
       "temp_min": -2.5,
       "wind_max": 8.28
     },
@@ -1835,8 +1835,8 @@
       "source": "met_office",
       "source_label": "UK Met Office",
       "location": "Ben Nevis",
-      "temp_max": -2.0,
-      "temp_min": -4.0,
+      "temp_max": -2,
+      "temp_min": -4,
       "wind_max": 123.92
     },
     {
@@ -1845,8 +1845,8 @@
       "source": "met_office",
       "source_label": "UK Met Office",
       "location": "Cairngorms",
-      "temp_max": -1.0,
-      "temp_min": -4.0,
+      "temp_max": -1,
+      "temp_min": -4,
       "wind_max": 77.25
     },
     {
@@ -1855,8 +1855,8 @@
       "source": "met_office",
       "source_label": "UK Met Office",
       "location": "Glencoe",
-      "temp_max": 8.0,
-      "temp_min": 6.0,
+      "temp_max": 8,
+      "temp_min": 6,
       "wind_max": 25.75
     },
     {
@@ -1865,8 +1865,8 @@
       "source": "met_office",
       "source_label": "UK Met Office",
       "location": "Glenshee",
-      "temp_max": 1.0,
-      "temp_min": -1.0,
+      "temp_max": 1,
+      "temp_min": -1,
       "wind_max": 46.67
     },
     {
@@ -1875,8 +1875,8 @@
       "source": "met_office",
       "source_label": "UK Met Office",
       "location": "Passo del Tonale",
-      "temp_max": 3.0,
-      "temp_min": -3.0,
+      "temp_max": 3,
+      "temp_min": -3,
       "wind_max": null
     },
     {
@@ -1896,7 +1896,7 @@
       "source_label": "Open-Meteo",
       "location": "Cairngorms",
       "temp_max": 2.3,
-      "temp_min": -1.0,
+      "temp_min": -1,
       "wind_max": 56.2
     },
     {
@@ -1987,7 +1987,7 @@
       "location": "Ben Nevis",
       "temp_max": 6.5,
       "temp_min": 2.9,
-      "wind_max": 101.0
+      "wind_max": 101
     },
     {
       "run_date": "2026-03-09",
@@ -1996,8 +1996,8 @@
       "source_label": "Google Weather",
       "location": "Cairngorms",
       "temp_max": 4.7,
-      "temp_min": 1.0,
-      "wind_max": 80.0
+      "temp_min": 1,
+      "wind_max": 80
     },
     {
       "run_date": "2026-03-09",
@@ -2007,7 +2007,7 @@
       "location": "Glencoe",
       "temp_max": 7.7,
       "temp_min": 4.1,
-      "wind_max": 87.0
+      "wind_max": 87
     },
     {
       "run_date": "2026-03-09",
@@ -2017,7 +2017,7 @@
       "location": "Glenshee",
       "temp_max": 5.4,
       "temp_min": 1.2,
-      "wind_max": 55.0
+      "wind_max": 55
     },
     {
       "run_date": "2026-03-09",
@@ -2036,7 +2036,7 @@
       "source_label": "MET Norway",
       "location": "Cairngorms",
       "temp_max": 3.6,
-      "temp_min": -1.0,
+      "temp_min": -1,
       "wind_max": 37.44
     },
     {
@@ -2065,8 +2065,8 @@
       "source": "met_office",
       "source_label": "UK Met Office",
       "location": "Ben Nevis",
-      "temp_max": 0.0,
-      "temp_min": -4.0,
+      "temp_max": 0,
+      "temp_min": -4,
       "wind_max": 107.83
     },
     {
@@ -2075,8 +2075,8 @@
       "source": "met_office",
       "source_label": "UK Met Office",
       "location": "Cairngorms",
-      "temp_max": 0.0,
-      "temp_min": -4.0,
+      "temp_max": 0,
+      "temp_min": -4,
       "wind_max": 82.08
     },
     {
@@ -2085,8 +2085,8 @@
       "source": "met_office",
       "source_label": "UK Met Office",
       "location": "Glencoe",
-      "temp_max": 10.0,
-      "temp_min": 6.0,
+      "temp_max": 10,
+      "temp_min": 6,
       "wind_max": 19.31
     },
     {
@@ -2095,8 +2095,8 @@
       "source": "met_office",
       "source_label": "UK Met Office",
       "location": "Glenshee",
-      "temp_max": 2.0,
-      "temp_min": -1.0,
+      "temp_max": 2,
+      "temp_min": -1,
       "wind_max": 46.67
     },
     {
@@ -2125,7 +2125,7 @@
       "source": "open_meteo",
       "source_label": "Open-Meteo",
       "location": "Glencoe",
-      "temp_max": 10.0,
+      "temp_max": 10,
       "temp_min": 5.4,
       "wind_max": 20.5
     },
@@ -2185,9 +2185,9 @@
       "source": "google_weather",
       "source_label": "Google Weather",
       "location": "Ben Nevis",
-      "temp_max": 6.0,
+      "temp_max": 6,
       "temp_min": 2.6,
-      "wind_max": 42.0
+      "wind_max": 42
     },
     {
       "run_date": "2026-03-08",
@@ -2197,7 +2197,7 @@
       "location": "Cairngorms",
       "temp_max": 5.8,
       "temp_min": 1.3,
-      "wind_max": 48.0
+      "wind_max": 48
     },
     {
       "run_date": "2026-03-08",
@@ -2207,7 +2207,7 @@
       "location": "Glencoe",
       "temp_max": 7.2,
       "temp_min": 3.9,
-      "wind_max": 34.0
+      "wind_max": 34
     },
     {
       "run_date": "2026-03-08",
@@ -2217,7 +2217,7 @@
       "location": "Glenshee",
       "temp_max": 6.7,
       "temp_min": 1.6,
-      "wind_max": 45.0
+      "wind_max": 45
     },
     {
       "run_date": "2026-03-08",
@@ -2265,8 +2265,8 @@
       "source": "met_office",
       "source_label": "UK Met Office",
       "location": "Ben Nevis",
-      "temp_max": -1.0,
-      "temp_min": -2.0,
+      "temp_max": -1,
+      "temp_min": -2,
       "wind_max": 62.76
     },
     {
@@ -2275,8 +2275,8 @@
       "source": "met_office",
       "source_label": "UK Met Office",
       "location": "Cairngorms",
-      "temp_max": 0.0,
-      "temp_min": -2.0,
+      "temp_max": 0,
+      "temp_min": -2,
       "wind_max": 49.89
     },
     {
@@ -2285,8 +2285,8 @@
       "source": "met_office",
       "source_label": "UK Met Office",
       "location": "Glencoe",
-      "temp_max": 9.0,
-      "temp_min": 7.0,
+      "temp_max": 9,
+      "temp_min": 7,
       "wind_max": 9.66
     },
     {
@@ -2295,8 +2295,8 @@
       "source": "met_office",
       "source_label": "UK Met Office",
       "location": "Glenshee",
-      "temp_max": 2.0,
-      "temp_min": 0.0,
+      "temp_max": 2,
+      "temp_min": 0,
       "wind_max": 24.14
     },
     {
@@ -2307,7 +2307,7 @@
       "location": "Ben Nevis",
       "temp_max": 0.2,
       "temp_min": -2.6,
-      "wind_max": 31.0
+      "wind_max": 31
     },
     {
       "run_date": "2026-03-08",
@@ -2387,7 +2387,7 @@
       "location": "Ben Nevis",
       "temp_max": 6.3,
       "temp_min": 2.2,
-      "wind_max": 29.0
+      "wind_max": 29
     },
     {
       "run_date": "2026-03-07",
@@ -2397,7 +2397,7 @@
       "location": "Cairngorms",
       "temp_max": 4.8,
       "temp_min": -0.3,
-      "wind_max": 43.0
+      "wind_max": 43
     },
     {
       "run_date": "2026-03-07",
@@ -2407,7 +2407,7 @@
       "location": "Glencoe",
       "temp_max": 7.4,
       "temp_min": 3.5,
-      "wind_max": 23.0
+      "wind_max": 23
     },
     {
       "run_date": "2026-03-07",
@@ -2415,9 +2415,9 @@
       "source": "google_weather",
       "source_label": "Google Weather",
       "location": "Glenshee",
-      "temp_max": 5.0,
+      "temp_max": 5,
       "temp_min": -0.4,
-      "wind_max": 26.0
+      "wind_max": 26
     },
     {
       "run_date": "2026-03-07",
@@ -2425,7 +2425,7 @@
       "source": "met_no",
       "source_label": "MET Norway",
       "location": "Ben Nevis",
-      "temp_max": 3.0,
+      "temp_max": 3,
       "temp_min": -4.1,
       "wind_max": 18.36
     },
@@ -2477,7 +2477,7 @@
       "location": "Cairngorms",
       "temp_max": 3.3,
       "temp_min": 1.1,
-      "wind_max": 32.0
+      "wind_max": 32
     },
     {
       "run_date": "2026-03-07",
@@ -2547,7 +2547,7 @@
       "location": "Ben Nevis",
       "temp_max": 7.3,
       "temp_min": 1.7,
-      "wind_max": 32.0
+      "wind_max": 32
     },
     {
       "run_date": "2026-03-06",
@@ -2557,7 +2557,7 @@
       "location": "Cairngorms",
       "temp_max": 5.4,
       "temp_min": -0.4,
-      "wind_max": 43.0
+      "wind_max": 43
     },
     {
       "run_date": "2026-03-06",
@@ -2567,7 +2567,7 @@
       "location": "Glencoe",
       "temp_max": 8.2,
       "temp_min": 2.9,
-      "wind_max": 29.0
+      "wind_max": 29
     },
     {
       "run_date": "2026-03-06",
@@ -2577,7 +2577,7 @@
       "location": "Glenshee",
       "temp_max": 5.8,
       "temp_min": -0.6,
-      "wind_max": 27.0
+      "wind_max": 27
     },
     {
       "run_date": "2026-03-06",
@@ -2616,7 +2616,7 @@
       "source_label": "MET Norway",
       "location": "Glenshee",
       "temp_max": 4.1,
-      "temp_min": -2.0,
+      "temp_min": -2,
       "wind_max": 20.52
     },
     {
@@ -2707,7 +2707,7 @@
       "location": "Ben Nevis",
       "temp_max": 4.5,
       "temp_min": -1.9,
-      "wind_max": 29.0
+      "wind_max": 29
     },
     {
       "run_date": "2026-03-05",
@@ -2717,7 +2717,7 @@
       "location": "Cairngorms",
       "temp_max": 2.1,
       "temp_min": -4.3,
-      "wind_max": 31.0
+      "wind_max": 31
     },
     {
       "run_date": "2026-03-05",
@@ -2727,7 +2727,7 @@
       "location": "Glencoe",
       "temp_max": 5.7,
       "temp_min": -0.4,
-      "wind_max": 23.0
+      "wind_max": 23
     },
     {
       "run_date": "2026-03-05",
@@ -2737,7 +2737,7 @@
       "location": "Glenshee",
       "temp_max": 3.3,
       "temp_min": -2.7,
-      "wind_max": 18.0
+      "wind_max": 18
     },
     {
       "run_date": "2026-03-05",
@@ -2755,7 +2755,7 @@
       "source": "met_no",
       "source_label": "MET Norway",
       "location": "Cairngorms",
-      "temp_max": 0.0,
+      "temp_max": 0,
       "temp_min": -6.1,
       "wind_max": 13.32
     },
@@ -2797,7 +2797,7 @@
       "location": "Cairngorms",
       "temp_max": 1.2,
       "temp_min": -6.6,
-      "wind_max": 31.0
+      "wind_max": 31
     },
     {
       "run_date": "2026-03-05",
@@ -2867,7 +2867,7 @@
       "location": "Ben Nevis",
       "temp_max": 6.3,
       "temp_min": -1.6,
-      "wind_max": 42.0
+      "wind_max": 42
     },
     {
       "run_date": "2026-03-04",
@@ -2877,7 +2877,7 @@
       "location": "Cairngorms",
       "temp_max": 5.9,
       "temp_min": -2.9,
-      "wind_max": 64.0
+      "wind_max": 64
     },
     {
       "run_date": "2026-03-04",
@@ -2887,7 +2887,7 @@
       "location": "Glencoe",
       "temp_max": 7.5,
       "temp_min": -0.4,
-      "wind_max": 32.0
+      "wind_max": 32
     },
     {
       "run_date": "2026-03-04",
@@ -2897,7 +2897,7 @@
       "location": "Glenshee",
       "temp_max": 6.7,
       "temp_min": -1.9,
-      "wind_max": 39.0
+      "wind_max": 39
     },
     {
       "run_date": "2026-03-04",
@@ -2926,7 +2926,7 @@
       "source_label": "MET Norway",
       "location": "Glencoe",
       "temp_max": 8.6,
-      "temp_min": 2.0,
+      "temp_min": 2,
       "wind_max": 23.76
     },
     {
@@ -2995,7 +2995,7 @@
       "source": "openweather",
       "source_label": "OpenWeather",
       "location": "Cairngorms",
-      "temp_max": 7.0,
+      "temp_max": 7,
       "temp_min": -1.35,
       "wind_max": 17.06
     },
@@ -3027,7 +3027,7 @@
       "location": "Ben Nevis",
       "temp_max": 6.6,
       "temp_min": 2.1,
-      "wind_max": 35.0
+      "wind_max": 35
     },
     {
       "run_date": "2026-03-03",
@@ -3037,7 +3037,7 @@
       "location": "Cairngorms",
       "temp_max": 5.6,
       "temp_min": 1.1,
-      "wind_max": 55.0
+      "wind_max": 55
     },
     {
       "run_date": "2026-03-03",
@@ -3047,7 +3047,7 @@
       "location": "Glencoe",
       "temp_max": 7.8,
       "temp_min": 3.6,
-      "wind_max": 29.0
+      "wind_max": 29
     },
     {
       "run_date": "2026-03-03",
@@ -3057,7 +3057,7 @@
       "location": "Glenshee",
       "temp_max": 5.9,
       "temp_min": 0.5,
-      "wind_max": 35.0
+      "wind_max": 35
     },
     {
       "run_date": "2026-03-03",
@@ -3186,8 +3186,8 @@
       "source_label": "Google Weather",
       "location": "Ben Nevis",
       "temp_max": 5.9,
-      "temp_min": 0.0,
-      "wind_max": 27.0
+      "temp_min": 0,
+      "wind_max": 27
     },
     {
       "run_date": "2026-03-02",
@@ -3197,7 +3197,7 @@
       "location": "Cairngorms",
       "temp_max": 4.3,
       "temp_min": -0.8,
-      "wind_max": 34.0
+      "wind_max": 34
     },
     {
       "run_date": "2026-03-02",
@@ -3206,8 +3206,8 @@
       "source_label": "Google Weather",
       "location": "Glencoe",
       "temp_max": 7.1,
-      "temp_min": 1.0,
-      "wind_max": 24.0
+      "temp_min": 1,
+      "wind_max": 24
     },
     {
       "run_date": "2026-03-02",
@@ -3217,7 +3217,7 @@
       "location": "Glenshee",
       "temp_max": 5.5,
       "temp_min": -0.4,
-      "wind_max": 24.0
+      "wind_max": 24
     },
     {
       "run_date": "2026-03-02",
@@ -3226,7 +3226,7 @@
       "source_label": "MET Norway",
       "location": "Ben Nevis",
       "temp_max": 3.9,
-      "temp_min": -5.0,
+      "temp_min": -5,
       "wind_max": 17.28
     },
     {
@@ -3265,7 +3265,7 @@
       "source": "open_meteo",
       "source_label": "Open-Meteo",
       "location": "Ben Nevis",
-      "temp_max": -1.0,
+      "temp_max": -1,
       "temp_min": -4.3,
       "wind_max": 24.5
     },
@@ -3347,7 +3347,7 @@
       "location": "Ben Nevis",
       "temp_max": 6.3,
       "temp_min": 0.5,
-      "wind_max": 43.0
+      "wind_max": 43
     },
     {
       "run_date": "2026-03-01",
@@ -3357,7 +3357,7 @@
       "location": "Cairngorms",
       "temp_max": 4.6,
       "temp_min": -1.1,
-      "wind_max": 45.0
+      "wind_max": 45
     },
     {
       "run_date": "2026-03-01",
@@ -3367,7 +3367,7 @@
       "location": "Glencoe",
       "temp_max": 7.5,
       "temp_min": 1.5,
-      "wind_max": 37.0
+      "wind_max": 37
     },
     {
       "run_date": "2026-03-01",
@@ -3377,7 +3377,7 @@
       "location": "Glenshee",
       "temp_max": 5.5,
       "temp_min": 0.1,
-      "wind_max": 34.0
+      "wind_max": 34
     },
     {
       "run_date": "2026-03-01",
@@ -3385,7 +3385,7 @@
       "source": "met_no",
       "source_label": "MET Norway",
       "location": "Ben Nevis",
-      "temp_max": 4.0,
+      "temp_max": 4,
       "temp_min": -0.6,
       "wind_max": 26.28
     },
@@ -3427,7 +3427,7 @@
       "location": "Ben Nevis",
       "temp_max": 1.7,
       "temp_min": -4.2,
-      "wind_max": 54.0
+      "wind_max": 54
     },
     {
       "run_date": "2026-03-01",
@@ -3435,9 +3435,9 @@
       "source": "open_meteo",
       "source_label": "Open-Meteo",
       "location": "Cairngorms",
-      "temp_max": 4.0,
-      "temp_min": 0.0,
-      "wind_max": 59.0
+      "temp_max": 4,
+      "temp_min": 0,
+      "wind_max": 59
     },
     {
       "run_date": "2026-03-01",
@@ -3477,7 +3477,7 @@
       "location": "Cairngorms",
       "temp_max": 4.18,
       "temp_min": -0.57,
-      "wind_max": 31.0
+      "wind_max": 31
     },
     {
       "run_date": "2026-03-01",
@@ -3507,7 +3507,7 @@
       "location": "Ben Nevis",
       "temp_max": 7.1,
       "temp_min": 1.5,
-      "wind_max": 55.0
+      "wind_max": 55
     },
     {
       "run_date": "2026-02-28",
@@ -3517,7 +3517,7 @@
       "location": "Cairngorms",
       "temp_max": 5.3,
       "temp_min": 0.1,
-      "wind_max": 72.0
+      "wind_max": 72
     },
     {
       "run_date": "2026-02-28",
@@ -3527,7 +3527,7 @@
       "location": "Glencoe",
       "temp_max": 8.2,
       "temp_min": 2.8,
-      "wind_max": 53.0
+      "wind_max": 53
     },
     {
       "run_date": "2026-02-28",
@@ -3537,7 +3537,7 @@
       "location": "Glenshee",
       "temp_max": 5.9,
       "temp_min": 0.6,
-      "wind_max": 58.0
+      "wind_max": 58
     },
     {
       "run_date": "2026-02-28",
@@ -3566,7 +3566,7 @@
       "source_label": "MET Norway",
       "location": "Glencoe",
       "temp_max": 8.7,
-      "temp_min": 3.0,
+      "temp_min": 3,
       "wind_max": 26.64
     },
     {
@@ -3596,7 +3596,7 @@
       "source_label": "Open-Meteo",
       "location": "Cairngorms",
       "temp_max": 3.9,
-      "temp_min": -2.0,
+      "temp_min": -2,
       "wind_max": 55.1
     },
     {
@@ -3657,7 +3657,7 @@
       "location": "Glenshee",
       "temp_max": 5.27,
       "temp_min": -0.59,
-      "wind_max": 23.0
+      "wind_max": 23
     },
     {
       "run_date": "2026-02-27",
@@ -3666,8 +3666,8 @@
       "source_label": "Google Weather",
       "location": "Ben Nevis",
       "temp_max": 2.7,
-      "temp_min": -3.0,
-      "wind_max": 27.0
+      "temp_min": -3,
+      "wind_max": 27
     },
     {
       "run_date": "2026-02-27",
@@ -3677,7 +3677,7 @@
       "location": "Cairngorms",
       "temp_max": 1.1,
       "temp_min": -4.1,
-      "wind_max": 35.0
+      "wind_max": 35
     },
     {
       "run_date": "2026-02-27",
@@ -3687,7 +3687,7 @@
       "location": "Glencoe",
       "temp_max": 3.9,
       "temp_min": -1.9,
-      "wind_max": 31.0
+      "wind_max": 31
     },
     {
       "run_date": "2026-02-27",
@@ -3697,7 +3697,7 @@
       "location": "Glenshee",
       "temp_max": 1.5,
       "temp_min": -3.1,
-      "wind_max": 21.0
+      "wind_max": 21
     },
     {
       "run_date": "2026-02-27",
@@ -3726,7 +3726,7 @@
       "source_label": "MET Norway",
       "location": "Glencoe",
       "temp_max": 6.4,
-      "temp_min": -2.0,
+      "temp_min": -2,
       "wind_max": 15.84
     },
     {
@@ -3757,7 +3757,7 @@
       "location": "Cairngorms",
       "temp_max": -0.7,
       "temp_min": -8.4,
-      "wind_max": 40.0
+      "wind_max": 40
     },
     {
       "run_date": "2026-02-27",
@@ -3825,9 +3825,9 @@
       "source": "google_weather",
       "source_label": "Google Weather",
       "location": "Ben Nevis",
-      "temp_max": 4.0,
+      "temp_max": 4,
       "temp_min": -2.3,
-      "wind_max": 34.0
+      "wind_max": 34
     },
     {
       "run_date": "2026-02-26",
@@ -3837,7 +3837,7 @@
       "location": "Cairngorms",
       "temp_max": 2.6,
       "temp_min": -3.7,
-      "wind_max": 37.0
+      "wind_max": 37
     },
     {
       "run_date": "2026-02-26",
@@ -3847,7 +3847,7 @@
       "location": "Glencoe",
       "temp_max": 5.1,
       "temp_min": -0.9,
-      "wind_max": 29.0
+      "wind_max": 29
     },
     {
       "run_date": "2026-02-26",
@@ -3857,7 +3857,7 @@
       "location": "Glenshee",
       "temp_max": 4.4,
       "temp_min": -2.9,
-      "wind_max": 27.0
+      "wind_max": 27
     },
     {
       "run_date": "2026-02-26",
@@ -3875,7 +3875,7 @@
       "source": "met_no",
       "source_label": "MET Norway",
       "location": "Cairngorms",
-      "temp_max": 2.0,
+      "temp_max": 2,
       "temp_min": -5.1,
       "wind_max": 27.72
     },
@@ -3927,7 +3927,7 @@
       "location": "Glencoe",
       "temp_max": 7.6,
       "temp_min": 1.3,
-      "wind_max": 13.0
+      "wind_max": 13
     },
     {
       "run_date": "2026-02-26",
@@ -3987,7 +3987,7 @@
       "location": "Ben Nevis",
       "temp_max": 6.2,
       "temp_min": 3.5,
-      "wind_max": 61.0
+      "wind_max": 61
     },
     {
       "run_date": "2026-02-25",
@@ -3997,7 +3997,7 @@
       "location": "Cairngorms",
       "temp_max": 4.6,
       "temp_min": 1.6,
-      "wind_max": 72.0
+      "wind_max": 72
     },
     {
       "run_date": "2026-02-25",
@@ -4007,7 +4007,7 @@
       "location": "Glencoe",
       "temp_max": 7.3,
       "temp_min": 4.7,
-      "wind_max": 56.0
+      "wind_max": 56
     },
     {
       "run_date": "2026-02-25",
@@ -4017,7 +4017,7 @@
       "location": "Glenshee",
       "temp_max": 5.4,
       "temp_min": 2.5,
-      "wind_max": 53.0
+      "wind_max": 53
     },
     {
       "run_date": "2026-02-25",
@@ -4077,7 +4077,7 @@
       "location": "Cairngorms",
       "temp_max": 4.9,
       "temp_min": 1.5,
-      "wind_max": 52.0
+      "wind_max": 52
     },
     {
       "run_date": "2026-02-25",
@@ -4147,7 +4147,7 @@
       "location": "Ben Nevis",
       "temp_max": 7.7,
       "temp_min": 4.3,
-      "wind_max": 34.0
+      "wind_max": 34
     },
     {
       "run_date": "2026-02-24",
@@ -4157,7 +4157,7 @@
       "location": "Cairngorms",
       "temp_max": 6.4,
       "temp_min": 3.1,
-      "wind_max": 35.0
+      "wind_max": 35
     },
     {
       "run_date": "2026-02-24",
@@ -4167,7 +4167,7 @@
       "location": "Glencoe",
       "temp_max": 8.6,
       "temp_min": 5.5,
-      "wind_max": 29.0
+      "wind_max": 29
     },
     {
       "run_date": "2026-02-24",
@@ -4177,7 +4177,7 @@
       "location": "Glenshee",
       "temp_max": 6.9,
       "temp_min": 4.2,
-      "wind_max": 29.0
+      "wind_max": 29
     },
     {
       "run_date": "2026-02-24",
@@ -4186,8 +4186,8 @@
       "source_label": "MET Norway",
       "location": "Ben Nevis",
       "temp_max": 4.1,
-      "temp_min": 2.0,
-      "wind_max": 18.0
+      "temp_min": 2,
+      "wind_max": 18
     },
     {
       "run_date": "2026-02-24",
@@ -4215,7 +4215,7 @@
       "source": "met_no",
       "source_label": "MET Norway",
       "location": "Glenshee",
-      "temp_max": 5.0,
+      "temp_max": 5,
       "temp_min": 3.7,
       "wind_max": 22.32
     },
