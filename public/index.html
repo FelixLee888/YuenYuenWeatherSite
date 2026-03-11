@@ -54,6 +54,14 @@
             <h2 id="selectedLocationName">-</h2>
             <p id="selectedUpdated" class="muted">-</p>
           </div>
+          <div class="detail-condition-badge" aria-hidden="true">
+            <img
+              id="detailConditionIcon"
+              class="detail-condition-icon"
+              src="./asset/weather-icons-set2/svg/weather_icon_set2_16.svg"
+              alt="Current weather"
+            />
+          </div>
         </div>
 
         <section class="panel metrics-panel">
@@ -101,13 +109,27 @@
           <div id="benchmarkList" class="benchmark-list"></div>
         </section>
 
-        <section class="panel history-panel">
+        <section class="panel mwis-panel">
           <div class="panel-head">
+            <h3>MWIS PDF</h3>
+            <p id="mwisMeta" class="muted">-</p>
+          </div>
+          <div id="mwisLinks" class="mwis-links"></div>
+        </section>
+
+        <section class="panel history-panel">
+          <div class="panel-head history-head">
             <h3>Historical Trend</h3>
-            <p id="historyMeta" class="muted">-</p>
+            <div class="history-head-side">
+              <div class="history-toggle" role="group" aria-label="Trend metric">
+                <button id="historyMetricTempBtn" type="button" class="history-toggle-btn is-active" aria-pressed="true">Temp</button>
+                <button id="historyMetricWindBtn" type="button" class="history-toggle-btn" aria-pressed="false">Wind</button>
+              </div>
+              <p id="historyMeta" class="muted">-</p>
+            </div>
           </div>
           <div id="historyChart" class="history-chart"></div>
-          <ul id="historyList" class="history-list"></ul>
+          <div id="historyLegend" class="history-legend"></div>
         </section>
       </section>
     </main>

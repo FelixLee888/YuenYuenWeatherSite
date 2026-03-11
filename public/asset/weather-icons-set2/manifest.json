@@ -1,0 +1,402 @@
+{
+  "source": "/Users/felixlee/Downloads/vecteezy_weather-icon-set-full-color_1436842.svg",
+  "count": 22,
+  "icons": [
+    {
+      "index": 1,
+      "name": "weather_icon_set2_01",
+      "svg": "./svg/weather_icon_set2_01.svg",
+      "png": "./png/weather_icon_set2_01.png",
+      "viewBox": [
+        1416.16,
+        791.14,
+        450.08,
+        500.93
+      ],
+      "source_bounds": [
+        1464.16,
+        839.14,
+        1818.24,
+        1244.07
+      ]
+    },
+    {
+      "index": 2,
+      "name": "weather_icon_set2_02",
+      "svg": "./svg/weather_icon_set2_02.svg",
+      "png": "./png/weather_icon_set2_02.png",
+      "viewBox": [
+        2660.61,
+        998.65,
+        442.2,
+        197.06
+      ],
+      "source_bounds": [
+        2708.61,
+        1046.65,
+        3054.82,
+        1147.71
+      ]
+    },
+    {
+      "index": 3,
+      "name": "weather_icon_set2_03",
+      "svg": "./svg/weather_icon_set2_03.svg",
+      "png": "./png/weather_icon_set2_03.png",
+      "viewBox": [
+        277.84,
+        2693.93,
+        391.21,
+        276.95
+      ],
+      "source_bounds": [
+        325.84,
+        2741.93,
+        621.05,
+        2922.87
+      ]
+    },
+    {
+      "index": 4,
+      "name": "weather_icon_set2_04",
+      "svg": "./svg/weather_icon_set2_04.svg",
+      "png": "./png/weather_icon_set2_04.png",
+      "viewBox": [
+        2661.44,
+        2023.51,
+        391.49,
+        319.71
+      ],
+      "source_bounds": [
+        2709.44,
+        2071.51,
+        3004.92,
+        2295.23
+      ]
+    },
+    {
+      "index": 5,
+      "name": "weather_icon_set2_05",
+      "svg": "./svg/weather_icon_set2_05.svg",
+      "png": "./png/weather_icon_set2_05.png",
+      "viewBox": [
+        1960.14,
+        2117.23,
+        444.15,
+        392.98
+      ],
+      "source_bounds": [
+        2008.14,
+        2165.23,
+        2356.29,
+        2462.21
+      ]
+    },
+    {
+      "index": 6,
+      "name": "weather_icon_set2_06",
+      "svg": "./svg/weather_icon_set2_06.svg",
+      "png": "./png/weather_icon_set2_06.png",
+      "viewBox": [
+        1463.92,
+        2133.79,
+        192.03,
+        256.62
+      ],
+      "source_bounds": [
+        1511.92,
+        2181.79,
+        1607.95,
+        2342.41
+      ]
+    },
+    {
+      "index": 7,
+      "name": "weather_icon_set2_07",
+      "svg": "./svg/weather_icon_set2_07.svg",
+      "png": "./png/weather_icon_set2_07.png",
+      "viewBox": [
+        773.62,
+        1990.51,
+        474,
+        344.71
+      ],
+      "source_bounds": [
+        821.62,
+        2038.51,
+        1199.61,
+        2287.21
+      ]
+    },
+    {
+      "index": 8,
+      "name": "weather_icon_set2_08",
+      "svg": "./svg/weather_icon_set2_08.svg",
+      "png": "./png/weather_icon_set2_08.png",
+      "viewBox": [
+        353.61,
+        2008.99,
+        312.6,
+        221.7
+      ],
+      "source_bounds": [
+        401.61,
+        2056.99,
+        618.21,
+        2182.69
+      ]
+    },
+    {
+      "index": 9,
+      "name": "weather_icon_set2_09",
+      "svg": "./svg/weather_icon_set2_09.svg",
+      "png": "./png/weather_icon_set2_09.png",
+      "viewBox": [
+        2015.91,
+        1409.87,
+        248.39,
+        203.47
+      ],
+      "source_bounds": [
+        2063.91,
+        1457.87,
+        2216.31,
+        1565.34
+      ]
+    },
+    {
+      "index": 10,
+      "name": "weather_icon_set2_10",
+      "svg": "./svg/weather_icon_set2_10.svg",
+      "png": "./png/weather_icon_set2_10.png",
+      "viewBox": [
+        2734.24,
+        1483.07,
+        263.74,
+        173.97
+      ],
+      "source_bounds": [
+        2782.24,
+        1531.07,
+        2949.98,
+        1609.04
+      ]
+    },
+    {
+      "index": 11,
+      "name": "weather_icon_set2_11",
+      "svg": "./svg/weather_icon_set2_11.svg",
+      "png": "./png/weather_icon_set2_11.png",
+      "viewBox": [
+        1374.62,
+        1358.3,
+        539.32,
+        549.1
+      ],
+      "source_bounds": [
+        1422.62,
+        1406.3,
+        1865.94,
+        1859.39
+      ]
+    },
+    {
+      "index": 12,
+      "name": "weather_icon_set2_12",
+      "svg": "./svg/weather_icon_set2_12.svg",
+      "png": "./png/weather_icon_set2_12.png",
+      "viewBox": [
+        836.95,
+        1373.41,
+        416,
+        266
+      ],
+      "source_bounds": [
+        884.95,
+        1421.41,
+        1204.95,
+        1591.41
+      ]
+    },
+    {
+      "index": 13,
+      "name": "weather_icon_set2_13",
+      "svg": "./svg/weather_icon_set2_13.svg",
+      "png": "./png/weather_icon_set2_13.png",
+      "viewBox": [
+        340.09,
+        1422.12,
+        326.11,
+        298.28
+      ],
+      "source_bounds": [
+        388.09,
+        1470.12,
+        618.2,
+        1672.41
+      ]
+    },
+    {
+      "index": 14,
+      "name": "weather_icon_set2_14",
+      "svg": "./svg/weather_icon_set2_14.svg",
+      "png": "./png/weather_icon_set2_14.png",
+      "viewBox": [
+        2124.15,
+        782.37,
+        312.06,
+        221.57
+      ],
+      "source_bounds": [
+        2172.15,
+        830.37,
+        2388.21,
+        955.94
+      ]
+    },
+    {
+      "index": 15,
+      "name": "weather_icon_set2_15",
+      "svg": "./svg/weather_icon_set2_15.svg",
+      "png": "./png/weather_icon_set2_15.png",
+      "viewBox": [
+        935.96,
+        793.65,
+        317.76,
+        212.68
+      ],
+      "source_bounds": [
+        983.96,
+        841.65,
+        1205.72,
+        958.34
+      ]
+    },
+    {
+      "index": 16,
+      "name": "weather_icon_set2_16",
+      "svg": "./svg/weather_icon_set2_16.svg",
+      "png": "./png/weather_icon_set2_16.png",
+      "viewBox": [
+        323.84,
+        797.6,
+        362.74,
+        343.88
+      ],
+      "source_bounds": [
+        371.84,
+        845.6,
+        638.58,
+        1093.49
+      ]
+    },
+    {
+      "index": 17,
+      "name": "weather_icon_set2_17",
+      "svg": "./svg/weather_icon_set2_17.svg",
+      "png": "./png/weather_icon_set2_17.png",
+      "viewBox": [
+        896.42,
+        353.71,
+        270.41,
+        309.9
+      ],
+      "source_bounds": [
+        944.42,
+        401.71,
+        1118.83,
+        615.61
+      ]
+    },
+    {
+      "index": 18,
+      "name": "weather_icon_set2_18",
+      "svg": "./svg/weather_icon_set2_18.svg",
+      "png": "./png/weather_icon_set2_18.png",
+      "viewBox": [
+        896.42,
+        2721.04,
+        345.25,
+        365.66
+      ],
+      "source_bounds": [
+        944.42,
+        2769.04,
+        1193.67,
+        3038.7
+      ]
+    },
+    {
+      "index": 19,
+      "name": "weather_icon_set2_19",
+      "svg": "./svg/weather_icon_set2_19.svg",
+      "png": "./png/weather_icon_set2_19.png",
+      "viewBox": [
+        2651.64,
+        173.26,
+        474.22,
+        467.74
+      ],
+      "source_bounds": [
+        2699.64,
+        221.26,
+        3077.87,
+        593
+      ]
+    },
+    {
+      "index": 20,
+      "name": "weather_icon_set2_20",
+      "svg": "./svg/weather_icon_set2_20.svg",
+      "png": "./png/weather_icon_set2_20.png",
+      "viewBox": [
+        2047.83,
+        269.26,
+        391.21,
+        276.95
+      ],
+      "source_bounds": [
+        2095.83,
+        317.26,
+        2391.05,
+        498.21
+      ]
+    },
+    {
+      "index": 21,
+      "name": "weather_icon_set2_21",
+      "svg": "./svg/weather_icon_set2_21.svg",
+      "png": "./png/weather_icon_set2_21.png",
+      "viewBox": [
+        1451.76,
+        216.4,
+        391.76,
+        320.92
+      ],
+      "source_bounds": [
+        1499.76,
+        264.4,
+        1795.52,
+        489.33
+      ]
+    },
+    {
+      "index": 22,
+      "name": "weather_icon_set2_22",
+      "svg": "./svg/weather_icon_set2_22.svg",
+      "png": "./png/weather_icon_set2_22.png",
+      "viewBox": [
+        265.72,
+        178.74,
+        474.22,
+        462.26
+      ],
+      "source_bounds": [
+        313.72,
+        226.74,
+        691.95,
+        593
+      ]
+    }
+  ]
+}

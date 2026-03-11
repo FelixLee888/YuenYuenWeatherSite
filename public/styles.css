@@ -303,6 +303,13 @@ main {
   margin-bottom: 0.52rem;
 }
 
+.location-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  flex-shrink: 0;
+}
+
 .location-title-wrap {
   min-width: 0;
 }
@@ -335,6 +342,29 @@ main {
   font-weight: 700;
   letter-spacing: 0.04em;
   color: #bfd6f8;
+}
+
+.location-delete-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(176, 203, 236, 0.64);
+  background: rgba(15, 34, 57, 0.7);
+  color: #d8e8ff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.location-delete-btn:hover {
+  background: rgba(29, 51, 77, 0.86);
+  border-color: rgba(191, 216, 246, 0.84);
 }
 
 .location-main {
@@ -438,6 +468,26 @@ main {
 
 .detail-summary {
   min-width: 0;
+}
+
+.detail-condition-badge {
+  width: clamp(74px, 9vw, 94px);
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  border: 1px solid rgba(188, 209, 236, 0.88);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 10px 22px rgba(19, 42, 76, 0.14);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.detail-condition-icon {
+  width: 80%;
+  height: 80%;
+  object-fit: contain;
+  display: block;
 }
 
 .detail-top h2 {
@@ -585,79 +635,146 @@ main {
   font-weight: 700;
 }
 
-.history-chart {
-  display: flex;
-  align-items: flex-end;
+.mwis-links {
+  display: grid;
   gap: 0.4rem;
-  min-height: 160px;
-  padding: 0.52rem 0.3rem 0.4rem;
+}
+
+.mwis-link {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 999px;
+  border: 1px solid #c7d9f3;
+  background: #eef5ff;
+  color: #164f8f;
+  text-decoration: none;
+  font-weight: 700;
+  padding: 0.34rem 0.64rem;
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.mwis-link:hover {
+  background: #e1ecfd;
+}
+
+.history-head {
+  align-items: center;
+}
+
+.history-head-side {
+  display: flex;
+  align-items: center;
+  gap: 0.52rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.history-head-side .muted {
+  margin: 0;
+}
+
+.history-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  border: 1px solid #c9d9ee;
+  border-radius: 999px;
+  background: #edf4ff;
+  padding: 0.16rem;
+}
+
+.history-toggle-btn {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #2c4f78;
+  padding: 0.22rem 0.56rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.history-toggle-btn.is-active {
+  background: #246fcb;
+  color: #fff;
+}
+
+.history-toggle-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.history-chart {
+  min-height: 236px;
+  padding: 0.5rem;
   border-radius: 11px;
   border: 1px solid #d8e4f4;
   background: var(--surface-alt);
   overflow-x: auto;
+  overflow-y: hidden;
 }
 
-.chart-col {
-  min-width: 42px;
+.history-line-svg {
+  display: block;
+  min-width: 100%;
+  height: auto;
+}
+
+.history-grid-line {
+  stroke: #d6e2f2;
+  stroke-width: 1;
+}
+
+.history-axis-label {
+  fill: #6f8098;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.history-axis-label-x {
+  font-size: 10px;
+}
+
+.history-series-line {
+  fill: none;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.history-point {
+  stroke: #fff;
+  stroke-width: 1.2;
+}
+
+.history-legend {
+  margin-top: 0.54rem;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.34rem;
+  flex-wrap: wrap;
+  gap: 0.34rem 0.52rem;
 }
 
-.chart-value {
+.history-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid #d7e4f4;
+  border-radius: 999px;
+  background: #f4f8ff;
+  padding: 0.18rem 0.46rem;
   font-size: 0.72rem;
-  font-weight: 800;
-  color: #6a7f9b;
+  font-weight: 700;
+  color: #395a81;
 }
 
-.chart-wrap {
-  height: 116px;
-  width: 22px;
-  display: flex;
-  align-items: flex-end;
-}
-
-.chart-bar {
-  width: 100%;
-  border-radius: 8px 8px 4px 4px;
-  background: linear-gradient(180deg, #57a6ff, #186ed8);
-}
-
-.chart-bar.is-forecast {
-  background: linear-gradient(180deg, #7fc264, #46953c);
-}
-
-.chart-label {
-  font-size: 0.65rem;
-  color: #7487a3;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.history-list {
-  list-style: none;
-  margin: 0.7rem 0 0;
-  padding: 0;
-  display: grid;
-  gap: 0.42rem;
-}
-
-.history-item {
-  border: 1px solid #d8e4f4;
-  border-radius: 10px;
-  background: var(--surface-alt);
-  padding: 0.5rem 0.58rem;
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 0.5rem;
-  align-items: center;
-  min-width: 0;
-}
-
-.history-item span {
-  color: var(--muted);
-  overflow-wrap: anywhere;
+.history-legend-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 2px;
+  border-radius: 999px;
 }
 
 @keyframes fade-in {
@@ -887,6 +1004,17 @@ main {
     font-size: 0.76rem;
   }
 
+  .detail-condition-badge {
+    width: 68px;
+    border-radius: 12px;
+    align-self: flex-end;
+  }
+
+  .detail-condition-icon {
+    width: 82%;
+    height: 82%;
+  }
+
   .panel {
     padding: 0.64rem;
     border-radius: 12px;
@@ -944,44 +1072,32 @@ main {
   }
 
   .history-chart {
-    min-height: 136px;
-    padding: 0.44rem 0.24rem 0.34rem;
-    scroll-snap-type: x proximity;
+    min-height: 206px;
+    padding: 0.36rem;
   }
 
-  .chart-col {
-    min-width: 36px;
-    gap: 0.26rem;
-    scroll-snap-align: end;
+  .history-head {
+    align-items: flex-start;
   }
 
-  .chart-wrap {
-    height: 94px;
-    width: 18px;
+  .history-head-side {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 0.34rem;
   }
 
-  .chart-value {
+  .history-toggle-btn {
+    font-size: 0.64rem;
+    padding: 0.2rem 0.5rem;
+  }
+
+  .history-axis-label {
+    font-size: 10px;
+  }
+
+  .history-legend-item {
     font-size: 0.66rem;
-  }
-
-  .chart-label {
-    font-size: 0.58rem;
-  }
-
-  .history-item {
-    grid-template-columns: 1fr;
-    gap: 0.28rem;
-    padding: 0.46rem 0.5rem;
-  }
-
-  .history-item strong {
-    font-size: 0.86rem;
-  }
-
-  .history-item span {
-    font-size: 0.8rem;
-    line-height: 1.24;
-    overflow-wrap: anywhere;
+    padding: 0.16rem 0.4rem;
   }
 }
 
@@ -1028,6 +1144,12 @@ main {
 
   .location-time {
     font-size: 0.58rem;
+  }
+
+  .location-delete-btn {
+    width: 17px;
+    height: 17px;
+    font-size: 0.62rem;
   }
 
   .weather-icon {
@@ -1104,6 +1226,10 @@ main {
   .detail-top {
     top: 0;
     padding: 0.42rem 0.46rem;
+  }
+
+  .detail-condition-badge {
+    width: 60px;
   }
 
   .metrics-grid {

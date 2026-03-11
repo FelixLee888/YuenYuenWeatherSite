@@ -26,6 +26,12 @@ const googleTokenCache = {
 };
 
 const SOURCE_BUCKETS = ["configured", "available", "used_for_report", "missing_api_keys", "skipped_errors"];
+const MWIS_REGION_CODES_BY_LOCATION = {
+  glencoe: ["wh", "nw"],
+  "ben nevis": ["wh", "nw"],
+  glenshee: ["eh", "sh"],
+  cairngorms: ["eh"]
+};
 
 const SHEET_TABLE_DEFS = {
   latest_meta: {
@@ -330,6 +336,55 @@ async function handleApi(req, res, requestUrl) {
       ok: true,
       source: bundle.source,
       data: buildWatchlistPayload(bundle)
+    });
+    return;
+  }
+
+  if (pathname === "/api/weather/watchlist" && req.method === "DELETE") {
+    let body;
+    try {
+      body = await readJsonBody(req);
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message });
+      return;
+    }
+
+    const location = [body?.location, body?.name, requestUrl.searchParams.get("location")]
+      .map((value) => (typeof value === "string" ? value.trim() : ""))
+      .find(Boolean);
+
+    if (!location) {
+      sendJson(res, 400, {
+        ok: false,
+        error: "Body must include 'location' or 'name'."
+      });
+      return;
+    }
+
+    const bundle = await loadWeatherBundle();
+    const existingWatchlist = buildWatchlistPayload(bundle);
+    const baseLocations = bundle.customWatchlist.locations.length
+      ? [...bundle.customWatchlist.locations]
+      : [...existingWatchlist.locations];
+    const key = normalizeLocation(location);
+    const nextLocations = baseLocations.filter((item) => normalizeLocation(item) !== key);
+    const removed = nextLocations.length !== baseLocations.length;
+
+    if (removed) {
+      await saveCustomWatchlist({
+        locations: nextLocations,
+        updated_at_utc: new Date().toISOString()
+      }, bundle.storage);
+    }
+
+    const refreshedBundle = await loadWeatherBundle();
+    sendJson(res, 200, {
+      ok: true,
+      source: refreshedBundle.source,
+      location,
+      removed,
+      message: removed ? "Location removed from watchlist." : "Location not found in watchlist.",
+      watchlist: buildWatchlistPayload(refreshedBundle)
     });
     return;
   }
@@ -1104,6 +1159,7 @@ function buildDailyData(report, history, location) {
     wind_kph: toNumber(zone?.ensemble?.wind_max) ?? toNumber(latestForecast?.wind_max),
     updated_at: report?.generated_at_utc || history?.generated_at_utc || null,
     forecast_date: report?.forecast_date || latestForecast?.target_date || null,
+    mwis_links: resolveMwisLinksForLocation(report, location),
     suitability: zone?.suitability || null,
     source_forecasts: zone?.source_forecasts || null,
     reference: latestForecast
@@ -1176,7 +1232,7 @@ function buildHistoryData(history, location) {
       const right = `${b.target_date || ""}${b.run_date || ""}`;
       return right.localeCompare(left);
     })
-    .slice(0, 10)
+    .slice(0, 60)
     .map((item) => ({
       kind: "forecast",
       date: item.target_date || null,
@@ -1192,7 +1248,7 @@ function buildHistoryData(history, location) {
 
   const combined = [...actualRows, ...forecastRows]
     .sort((a, b) => `${b.date || ""}`.localeCompare(`${a.date || ""}`))
-    .slice(0, 30);
+    .slice(0, 120);
 
   return {
     location,
@@ -1208,7 +1264,8 @@ function buildHistoryData(history, location) {
 
 function buildWatchlistPayload(bundle) {
   const dynamicLocations = collectKnownLocations(bundle.report, bundle.history, []);
-  const merged = mergeLocations(dynamicLocations, bundle.customWatchlist.locations);
+  const customLocations = Array.isArray(bundle.customWatchlist?.locations) ? bundle.customWatchlist.locations : [];
+  const merged = customLocations.length ? mergeLocations(customLocations) : dynamicLocations;
 
   return {
     generated_at_utc: bundle.report?.generated_at_utc || bundle.history?.generated_at_utc || null,
@@ -1217,7 +1274,7 @@ function buildWatchlistPayload(bundle) {
     counts: {
       total: merged.length,
       dynamic: dynamicLocations.length,
-      custom: bundle.customWatchlist.locations.length
+      custom: customLocations.length
     }
   };
 }
@@ -1365,6 +1422,27 @@ function buildActualCondition(item) {
   }
 
   return pieces.join(" | ") || "Observed weather";
+}
+
+function extractMwisRegionCode(link) {
+  const match = /\/([a-z]{2})-mwi-/i.exec(`${link || ""}`);
+  return match ? match[1].toLowerCase() : "";
+}
+
+function resolveMwisLinksForLocation(report, location) {
+  const links = Array.isArray(report?.mwis_pdf_links) ? report.mwis_pdf_links : [];
+  if (!links.length) {
+    return [];
+  }
+
+  const normalized = normalizeLocation(location);
+  const expectedCodes = MWIS_REGION_CODES_BY_LOCATION[normalized] || [];
+  if (!expectedCodes.length) {
+    return [];
+  }
+
+  const matched = links.filter((link) => expectedCodes.includes(extractMwisRegionCode(link)));
+  return matched.length ? matched : [];
 }
 
 function normalizeLocation(value) {
@@ -1571,7 +1649,7 @@ async function readJsonBody(req) {
 function applyApiHeaders(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
 }
 
 function sendJson(res, statusCode, payload) {

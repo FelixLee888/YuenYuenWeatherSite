@@ -26,6 +26,33 @@ const LOCATION_COUNTRY_BY_NAME = {
   "passo del tonale": "Italy"
 };
 
+const MWIS_REGION_CODES_BY_LOCATION = {
+  glencoe: ["wh", "nw"],
+  "ben nevis": ["wh", "nw"],
+  glenshee: ["eh", "sh"],
+  cairngorms: ["eh"]
+};
+
+const HISTORY_SOURCE_COLORS = ["#1f78ff", "#34a853", "#f29900", "#7c4dff", "#e84d8a", "#00a0a0", "#5e6f82"];
+
+const HISTORY_METRIC_CONFIG = {
+  temperature: { label: "Temperature", unit: "C" },
+  wind: { label: "Wind", unit: "km/h" }
+};
+
+const DETAIL_WEATHER_ICON_SET2 = {
+  thunder: "./asset/weather-icons-set2/svg/weather_icon_set2_07.svg",
+  storm: "./asset/weather-icons-set2/svg/weather_icon_set2_12.svg",
+  rain: "./asset/weather-icons-set2/svg/weather_icon_set2_01.svg",
+  heavyRain: "./asset/weather-icons-set2/svg/weather_icon_set2_08.svg",
+  cold: "./asset/weather-icons-set2/svg/weather_icon_set2_21.svg",
+  wind: "./asset/weather-icons-set2/svg/weather_icon_set2_15.svg",
+  cloud: "./asset/weather-icons-set2/svg/weather_icon_set2_13.svg",
+  clearDay: "./asset/weather-icons-set2/svg/weather_icon_set2_22.svg",
+  clearNight: "./asset/weather-icons-set2/svg/weather_icon_set2_03.svg",
+  fallback: "./asset/weather-icons-set2/svg/weather_icon_set2_16.svg"
+};
+
 const APP_BASE_URL = new URL("./", window.location.href);
 const LOCAL_WATCHLIST_STORAGE_KEY = "yuen_yuen_weather_watchlist";
 const STATIC_SYNC_UNAVAILABLE = "GitHub Pages mode: AIBot watchlist sync is unavailable.";
@@ -40,6 +67,8 @@ const state = {
   cards: new Map(),
   focusedLocation: "",
   selectedLocation: "",
+  historyMetric: "temperature",
+  historyTrendModel: null,
   isMobileLayout: false,
   isTransitioningDetail: false,
   suppressDeckClickUntil: 0,
@@ -61,6 +90,7 @@ const elements = {
   locationGrid: document.getElementById("locationGrid"),
   selectedLocationName: document.getElementById("selectedLocationName"),
   selectedUpdated: document.getElementById("selectedUpdated"),
+  detailConditionIcon: document.getElementById("detailConditionIcon"),
   dailyCondition: document.getElementById("dailyCondition"),
   dailyTemp: document.getElementById("dailyTemp"),
   dailyLowHigh: document.getElementById("dailyLowHigh"),
@@ -69,10 +99,14 @@ const elements = {
   benchmarkSource: document.getElementById("benchmarkSource"),
   benchmarkDelta: document.getElementById("benchmarkDelta"),
   benchmarkList: document.getElementById("benchmarkList"),
+  mwisMeta: document.getElementById("mwisMeta"),
+  mwisLinks: document.getElementById("mwisLinks"),
   sportGrid: document.getElementById("sportGrid"),
+  historyMetricTempBtn: document.getElementById("historyMetricTempBtn"),
+  historyMetricWindBtn: document.getElementById("historyMetricWindBtn"),
   historyMeta: document.getElementById("historyMeta"),
   historyChart: document.getElementById("historyChart"),
-  historyList: document.getElementById("historyList")
+  historyLegend: document.getElementById("historyLegend")
 };
 
 bindEvents();
@@ -109,6 +143,17 @@ function bindEvents() {
   elements.locationGrid.addEventListener("click", async (event) => {
     if (Date.now() < state.suppressDeckClickUntil) {
       event.preventDefault();
+      return;
+    }
+
+    const deleteTrigger = getDeleteTrigger(event);
+    if (deleteTrigger) {
+      event.preventDefault();
+      event.stopPropagation();
+      const location = (deleteTrigger.getAttribute("data-delete-location") || "").trim();
+      if (location) {
+        await deleteLocation(location);
+      }
       return;
     }
 
@@ -154,6 +199,14 @@ function bindEvents() {
   elements.locationGrid.addEventListener("touchmove", handleDeckTouchMove, { passive: true });
   elements.locationGrid.addEventListener("touchend", handleDeckTouchEnd, { passive: true });
   elements.locationGrid.addEventListener("touchcancel", handleDeckTouchEnd, { passive: true });
+
+  elements.historyMetricTempBtn?.addEventListener("click", () => {
+    setHistoryMetric("temperature");
+  });
+
+  elements.historyMetricWindBtn?.addEventListener("click", () => {
+    setHistoryMetric("wind");
+  });
 
   window.addEventListener("resize", () => {
     const mobileNow = isMobileViewport();
@@ -273,6 +326,25 @@ async function addLocation(location) {
   setStatus(`${location} added.`, "success");
 }
 
+async function deleteLocation(location) {
+  setLoading(true);
+  setStatus(`Removing ${location}...`);
+
+  const result = await apiRequest("/api/weather/watchlist", {
+    method: "DELETE",
+    body: JSON.stringify({ location })
+  });
+
+  if (!result.ok) {
+    setLoading(false);
+    setStatus(result.error || `Unable to remove ${location}.`, "error");
+    return;
+  }
+
+  await loadOverview();
+  setStatus(result.removed ? `${location} removed.` : `${location} is not in watch list.`, "success");
+}
+
 async function openDetailPage(location, options = {}) {
   if (state.isTransitioningDetail) {
     return;
@@ -385,7 +457,16 @@ function renderLocationCards() {
           <h3 class="location-name">${escapeHtml(location)}</h3>
           <p class="location-label">${escapeHtml(country)}</p>
         </div>
-        <p class="location-time">${escapeHtml(formatTimeOnly(updatedAt))}</p>
+        <div class="location-head-actions">
+          <p class="location-time">${escapeHtml(formatTimeOnly(updatedAt))}</p>
+          <span
+            class="location-delete-btn"
+            data-delete-location="${escapeHtml(location)}"
+            role="button"
+            aria-label="Delete ${escapeHtml(location)} from watch list"
+            title="Delete from watch list"
+          >×</span>
+        </div>
       </div>
       <div class="location-main">
         <span class="weather-icon" aria-hidden="true">${pickWeatherIcon(condition)}</span>
@@ -520,7 +601,13 @@ function renderDetail(payload) {
   elements.selectedLocationName.textContent = location;
   elements.selectedUpdated.textContent = `Updated ${formatDateTime(updatedAt)}`;
 
-  elements.dailyCondition.textContent = formatValue(condition);
+  if (elements.detailConditionIcon) {
+    const detailIcon = pickDetailWeatherIcon(condition, updatedAt);
+    elements.detailConditionIcon.src = detailIcon.src;
+    elements.detailConditionIcon.alt = detailIcon.alt;
+  }
+
+  elements.dailyCondition.textContent = formatValue(cleanConditionForCard(location, condition));
   elements.dailyTemp.textContent = formatTemperature(temp);
   elements.dailyLowHigh.textContent = `${formatTemperature(low)} / ${formatTemperature(high)}`;
   elements.dailyWind.textContent = formatWind(wind);
@@ -535,12 +622,14 @@ function renderDetail(payload) {
 
   renderSportRecommendations(daily?.suitability);
   renderBenchmarkSources(benchmark);
+  renderMwisLinks(location, daily?.mwis_links);
 
-  const historyRows = extractHistoryRows(history).slice(0, 14);
-  renderHistoryChart(historyRows);
-  renderHistoryList(historyRows);
-
-  elements.historyMeta.textContent = `${historyRows.length} records`;
+  state.historyTrendModel = buildHistoryTrendModel(history);
+  if (!historyModelHasMetricData(state.historyTrendModel, state.historyMetric)) {
+    state.historyMetric = historyModelHasMetricData(state.historyTrendModel, "temperature") ? "temperature" : "wind";
+  }
+  syncHistoryMetricButtons();
+  renderHistoryChart(state.historyTrendModel, state.historyMetric);
 }
 
 function renderSportRecommendations(suitability) {
@@ -619,88 +708,364 @@ function renderBenchmarkSources(payload) {
   }
 }
 
-function renderHistoryChart(rows) {
-  elements.historyChart.innerHTML = "";
-
-  if (!rows.length) {
-    const note = document.createElement("p");
-    note.className = "muted";
-    note.textContent = "No historical rows available.";
-    elements.historyChart.appendChild(note);
+function renderMwisLinks(location, links) {
+  if (!elements.mwisLinks || !elements.mwisMeta) {
     return;
   }
 
-  const chartRows = [...rows].reverse().slice(0, 12);
-  const values = chartRows.map((row) => toNumber(row.temperature)).filter((value) => Number.isFinite(value));
-  const min = values.length ? Math.min(...values) : 0;
-  const max = values.length ? Math.max(...values) : 1;
-  const range = max - min || 1;
+  elements.mwisLinks.innerHTML = "";
 
-  for (const row of chartRows) {
-    const value = toNumber(row.temperature);
-    const ratio = Number.isFinite(value) ? (value - min) / range : 0.1;
-    const height = Math.max(10, Math.round(ratio * 100));
+  const uniqueLinks = Array.from(new Set((Array.isArray(links) ? links : []).map((item) => `${item || ""}`.trim()).filter(Boolean)));
+  if (!uniqueLinks.length) {
+    const note = document.createElement("p");
+    note.className = "muted";
+    note.textContent = `No MWIS PDF available for ${location}.`;
+    elements.mwisLinks.appendChild(note);
+    elements.mwisMeta.textContent = "Unavailable";
+    return;
+  }
 
-    const col = document.createElement("div");
-    col.className = "chart-col";
+  uniqueLinks.forEach((link, index) => {
+    const anchor = document.createElement("a");
+    anchor.className = "mwis-link";
+    anchor.href = link;
+    anchor.target = "_blank";
+    anchor.rel = "noopener noreferrer";
+    anchor.textContent = uniqueLinks.length > 1 ? `Download MWIS PDF ${index + 1}` : "Download MWIS PDF";
+    elements.mwisLinks.appendChild(anchor);
+  });
 
-    const valueNode = document.createElement("span");
-    valueNode.className = "chart-value";
-    valueNode.textContent = formatTemperature(value);
+  elements.mwisMeta.textContent = `${uniqueLinks.length} file${uniqueLinks.length > 1 ? "s" : ""}`;
+}
 
-    const wrap = document.createElement("div");
-    wrap.className = "chart-wrap";
+function setHistoryMetric(metric) {
+  if (!Object.prototype.hasOwnProperty.call(HISTORY_METRIC_CONFIG, metric)) {
+    return;
+  }
 
-    const bar = document.createElement("div");
-    bar.className = "chart-bar";
-    if (row.kind === "forecast") {
-      bar.classList.add("is-forecast");
-    }
-    bar.style.height = `${height}px`;
+  state.historyMetric = metric;
+  syncHistoryMetricButtons();
 
-    wrap.appendChild(bar);
-
-    const label = document.createElement("span");
-    label.className = "chart-label";
-    label.textContent = shortDateLabel(row.date);
-
-    col.appendChild(valueNode);
-    col.appendChild(wrap);
-    col.appendChild(label);
-
-    elements.historyChart.appendChild(col);
+  if (state.historyTrendModel) {
+    renderHistoryChart(state.historyTrendModel, state.historyMetric);
   }
 }
 
-function renderHistoryList(rows) {
-  elements.historyList.innerHTML = "";
+function syncHistoryMetricButtons() {
+  const hasTemp = historyModelHasMetricData(state.historyTrendModel, "temperature");
+  const hasWind = historyModelHasMetricData(state.historyTrendModel, "wind");
 
-  if (!rows.length) {
-    const item = document.createElement("li");
-    item.className = "history-item";
-    item.textContent = "No history rows for this location.";
-    elements.historyList.appendChild(item);
+  if (elements.historyMetricTempBtn) {
+    const isActive = state.historyMetric === "temperature";
+    elements.historyMetricTempBtn.classList.toggle("is-active", isActive);
+    elements.historyMetricTempBtn.setAttribute("aria-pressed", isActive ? "true" : "false");
+    elements.historyMetricTempBtn.disabled = !hasTemp;
+  }
+
+  if (elements.historyMetricWindBtn) {
+    const isActive = state.historyMetric === "wind";
+    elements.historyMetricWindBtn.classList.toggle("is-active", isActive);
+    elements.historyMetricWindBtn.setAttribute("aria-pressed", isActive ? "true" : "false");
+    elements.historyMetricWindBtn.disabled = !hasWind;
+  }
+}
+
+function historyModelHasMetricData(model, metric) {
+  if (!model || !Array.isArray(model.series) || !model.series.length) {
+    return false;
+  }
+
+  return model.series.some((series) =>
+    Array.isArray(series.points) &&
+    series.points.some((point) => Number.isFinite(toNumber(metric === "wind" ? point?.wind : point?.temperature)))
+  );
+}
+
+function buildHistoryTrendModel(payload) {
+  const rows = Array.isArray(payload?.history) ? payload.history : extractHistoryRows(payload);
+  const forecastRows = rows
+    .filter((row) => normalizeLocation(row?.kind) === "forecast")
+    .sort((a, b) => `${b.date || ""}${b.run_date || ""}`.localeCompare(`${a.date || ""}${a.run_date || ""}`));
+
+  const seriesMap = new Map();
+  for (const row of forecastRows) {
+    const sourceKey = `${row?.source || row?.source_label || ""}`.trim();
+    if (!sourceKey) {
+      continue;
+    }
+
+    const dateKey = normalizeDateKey(row?.date);
+    if (!dateKey) {
+      continue;
+    }
+
+    const temp = toNumber(row?.temperature) ?? averageValues(toNumber(row?.temp_max), toNumber(row?.temp_min));
+    const wind = toNumber(row?.wind_max);
+    if (!Number.isFinite(temp) && !Number.isFinite(wind)) {
+      continue;
+    }
+
+    if (!seriesMap.has(sourceKey)) {
+      seriesMap.set(sourceKey, {
+        key: sourceKey,
+        label: `${row?.source_label || sourceKey}`,
+        pointsByDate: new Map()
+      });
+    }
+
+    const targetSeries = seriesMap.get(sourceKey);
+    if (!targetSeries.pointsByDate.has(dateKey)) {
+      targetSeries.pointsByDate.set(dateKey, {
+        date: dateKey,
+        temperature: temp,
+        wind
+      });
+    }
+  }
+
+  const rawSeries = Array.from(seriesMap.values())
+    .map((entry) => ({
+      ...entry,
+      pointCount: entry.pointsByDate.size
+    }))
+    .filter((entry) => entry.pointCount > 0)
+    .sort((left, right) => {
+      if (left.pointCount !== right.pointCount) {
+        return right.pointCount - left.pointCount;
+      }
+      return left.label.localeCompare(right.label);
+    })
+    .slice(0, 7);
+
+  const dateSet = new Set();
+  for (const series of rawSeries) {
+    for (const dateKey of series.pointsByDate.keys()) {
+      dateSet.add(dateKey);
+    }
+  }
+
+  const dates = Array.from(dateSet).sort((a, b) => a.localeCompare(b));
+  const series = rawSeries.map((entry, index) => ({
+    key: entry.key,
+    label: entry.label,
+    color: HISTORY_SOURCE_COLORS[index % HISTORY_SOURCE_COLORS.length],
+    points: dates.map((dateKey) => entry.pointsByDate.get(dateKey) || { date: dateKey, temperature: null, wind: null }),
+    pointCount: entry.pointCount
+  }));
+
+  return {
+    dates,
+    series,
+    rowCount: forecastRows.length
+  };
+}
+
+function renderHistoryChart(model, metric = "temperature") {
+  if (!elements.historyChart || !elements.historyLegend || !elements.historyMeta) {
     return;
   }
 
-  for (const row of rows) {
-    const item = document.createElement("li");
-    item.className = "history-item";
+  elements.historyChart.innerHTML = "";
+  elements.historyLegend.innerHTML = "";
 
-    const date = document.createElement("strong");
-    date.textContent = `${formatDateLabel(row.date)}${row.kind === "forecast" ? " (F)" : ""}`;
-
-    const temp = document.createElement("span");
-    temp.textContent = formatTemperature(row.temperature);
-
-    const note = document.createElement("span");
-    note.textContent = shortText(row.condition, 56);
-
-    item.appendChild(date);
-    item.appendChild(temp);
-    item.appendChild(note);
-    elements.historyList.appendChild(item);
+  if (!model || !Array.isArray(model.series) || !model.series.length || !Array.isArray(model.dates) || !model.dates.length) {
+    elements.historyMeta.textContent = "No trend data";
+    renderHistoryChartEmpty("No source trend data available.");
+    return;
   }
+
+  const metricKey = metric === "wind" ? "wind" : "temperature";
+  const metricInfo = HISTORY_METRIC_CONFIG[metricKey];
+  const readPointValue = (point) => toNumber(metricKey === "wind" ? point?.wind : point?.temperature);
+
+  const numericValues = [];
+  for (const series of model.series) {
+    for (const point of series.points) {
+      const value = readPointValue(point);
+      if (Number.isFinite(value)) {
+        numericValues.push(value);
+      }
+    }
+  }
+
+  if (!numericValues.length) {
+    elements.historyMeta.textContent = `${model.series.length} sources`;
+    renderHistoryChartEmpty(`No ${metricInfo.label.toLowerCase()} values in source trend data.`);
+    return;
+  }
+
+  let min = Math.min(...numericValues);
+  let max = Math.max(...numericValues);
+  if (min === max) {
+    const pad = metricKey === "wind" ? 2 : 0.5;
+    min -= pad;
+    max += pad;
+  }
+
+  const marginTop = 20;
+  const marginRight = 24;
+  const marginBottom = 34;
+  const marginLeft = 52;
+  const plotHeight = 166;
+  const stepX = Math.max(56, Math.min(90, 760 / Math.max(1, model.dates.length - 1)));
+  const chartWidth = Math.max(520, marginLeft + marginRight + stepX * Math.max(1, model.dates.length - 1));
+  const chartHeight = marginTop + plotHeight + marginBottom;
+  const range = max - min || 1;
+
+  const svg = createSvgNode("svg", {
+    class: "history-line-svg",
+    viewBox: `0 0 ${chartWidth} ${chartHeight}`,
+    width: chartWidth,
+    height: chartHeight,
+    role: "img",
+    "aria-label": `${metricInfo.label} trend by source`
+  });
+
+  for (let tick = 0; tick <= 4; tick += 1) {
+    const ratio = tick / 4;
+    const y = marginTop + ratio * plotHeight;
+    const value = max - ratio * range;
+
+    svg.appendChild(createSvgNode("line", {
+      class: "history-grid-line",
+      x1: marginLeft,
+      y1: y,
+      x2: chartWidth - marginRight,
+      y2: y
+    }));
+
+    const label = createSvgNode("text", {
+      class: "history-axis-label",
+      x: marginLeft - 8,
+      y: y + 4,
+      "text-anchor": "end"
+    });
+    label.textContent = formatMetricValue(value, metricKey);
+    svg.appendChild(label);
+  }
+
+  const labelStride = Math.max(1, Math.ceil(model.dates.length / 6));
+  for (let index = 0; index < model.dates.length; index += 1) {
+    const isLast = index === model.dates.length - 1;
+    if (!isLast && index % labelStride !== 0) {
+      continue;
+    }
+
+    const x = marginLeft + index * stepX;
+    const label = createSvgNode("text", {
+      class: "history-axis-label history-axis-label-x",
+      x,
+      y: chartHeight - 8,
+      "text-anchor": "middle"
+    });
+    label.textContent = shortDateLabel(model.dates[index]);
+    svg.appendChild(label);
+  }
+
+  for (const series of model.series) {
+    let pathData = "";
+    let hasSegment = false;
+
+    for (let index = 0; index < series.points.length; index += 1) {
+      const point = series.points[index];
+      const value = readPointValue(point);
+      if (!Number.isFinite(value)) {
+        hasSegment = false;
+        continue;
+      }
+
+      const x = marginLeft + index * stepX;
+      const y = marginTop + ((max - value) / range) * plotHeight;
+      pathData += hasSegment ? ` L ${x} ${y}` : ` M ${x} ${y}`;
+      hasSegment = true;
+    }
+
+    if (pathData.trim()) {
+      svg.appendChild(createSvgNode("path", {
+        class: "history-series-line",
+        d: pathData,
+        stroke: series.color
+      }));
+    }
+
+    for (let index = 0; index < series.points.length; index += 1) {
+      const point = series.points[index];
+      const value = readPointValue(point);
+      if (!Number.isFinite(value)) {
+        continue;
+      }
+
+      const x = marginLeft + index * stepX;
+      const y = marginTop + ((max - value) / range) * plotHeight;
+      svg.appendChild(createSvgNode("circle", {
+        class: "history-point",
+        cx: x,
+        cy: y,
+        r: 2.8,
+        fill: series.color
+      }));
+    }
+  }
+
+  elements.historyChart.appendChild(svg);
+  renderHistoryLegend(model.series);
+  elements.historyMeta.textContent = `${model.series.length} sources • ${model.dates.length} days • ${metricInfo.label}`;
+}
+
+function renderHistoryLegend(seriesList) {
+  if (!elements.historyLegend) {
+    return;
+  }
+
+  elements.historyLegend.innerHTML = "";
+  for (const series of seriesList) {
+    const item = document.createElement("span");
+    item.className = "history-legend-item";
+
+    const swatch = document.createElement("i");
+    swatch.className = "history-legend-swatch";
+    swatch.style.backgroundColor = series.color;
+
+    const text = document.createElement("span");
+    text.textContent = series.label;
+
+    item.appendChild(swatch);
+    item.appendChild(text);
+    elements.historyLegend.appendChild(item);
+  }
+}
+
+function renderHistoryChartEmpty(message) {
+  if (!elements.historyChart) {
+    return;
+  }
+
+  elements.historyChart.innerHTML = "";
+  const note = document.createElement("p");
+  note.className = "muted";
+  note.textContent = message;
+  elements.historyChart.appendChild(note);
+}
+
+function formatMetricValue(value, metric) {
+  const numeric = toNumber(value);
+  if (numeric === null) {
+    return "-";
+  }
+
+  if (metric === "wind") {
+    return `${numeric.toFixed(0)} km/h`;
+  }
+
+  return `${numeric.toFixed(1)} C`;
+}
+
+function createSvgNode(tagName, attributes = {}) {
+  const node = document.createElementNS("http://www.w3.org/2000/svg", tagName);
+  for (const [key, value] of Object.entries(attributes)) {
+    node.setAttribute(key, `${value}`);
+  }
+  return node;
 }
 
 function getLocationButton(event) {
@@ -710,6 +1075,15 @@ function getLocationButton(event) {
   }
 
   return target.closest("button[data-location]");
+}
+
+function getDeleteTrigger(event) {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return null;
+  }
+
+  return target.closest("[data-delete-location]");
 }
 
 function resolveCountryForLocation(location) {
@@ -749,6 +1123,27 @@ function cleanConditionForCard(location, condition) {
 
   cleaned = cleaned.replace(/^[\s\-–—:;,]+/, "").trim();
   return cleaned || original;
+}
+
+function extractMwisRegionCode(link) {
+  const match = /\/([a-z]{2})-mwi-/i.exec(`${link || ""}`);
+  return match ? match[1].toLowerCase() : "";
+}
+
+function resolveMwisLinksForLocation(report, location) {
+  const links = Array.isArray(report?.mwis_pdf_links) ? report.mwis_pdf_links : [];
+  if (!links.length) {
+    return [];
+  }
+
+  const normalized = normalizeLocation(location);
+  const expectedCodes = MWIS_REGION_CODES_BY_LOCATION[normalized] || [];
+  if (!expectedCodes.length) {
+    return [];
+  }
+
+  const matched = links.filter((link) => expectedCodes.includes(extractMwisRegionCode(link)));
+  return matched.length ? matched : [];
 }
 
 function isOverviewVisible() {
@@ -1023,6 +1418,56 @@ async function staticApiRequest(url, options = {}) {
     };
   }
 
+  if (apiPath === "/api/weather/watchlist" && method === "DELETE") {
+    const body = readApiRequestBody(options.body);
+    const location = [body?.location, body?.name, absolute.searchParams.get("location")]
+      .map((value) => (typeof value === "string" ? value.trim() : ""))
+      .find(Boolean);
+
+    if (!location) {
+      return {
+        ok: false,
+        status: 400,
+        error: "Body must include 'location' or 'name'.",
+        data: null
+      };
+    }
+
+    const bundle = await loadStaticBundle();
+    const existingWatchlist = buildWatchlistPayloadStatic(bundle);
+    const baseLocations = Array.isArray(bundle.watchlist?.locations) && bundle.watchlist.locations.length
+      ? [...bundle.watchlist.locations]
+      : [...existingWatchlist.locations];
+    const key = normalizeLocation(location);
+    const nextLocations = baseLocations.filter((item) => normalizeLocation(item) !== key);
+    const removed = nextLocations.length !== baseLocations.length;
+
+    if (removed) {
+      bundle.watchlist.locations = nextLocations;
+      bundle.watchlist.updated_at_utc = new Date().toISOString();
+      saveLocalWatchlist(bundle.watchlist);
+      staticBundleCache = null;
+    }
+
+    const refreshed = await loadStaticBundle(true);
+
+    return {
+      ok: true,
+      status: 200,
+      source: "public/data",
+      location,
+      removed,
+      message: removed ? "Location removed from local watchlist." : "Location not found in local watchlist.",
+      watchlist: buildWatchlistPayloadStatic(refreshed),
+      sync: {
+        enabled: false,
+        ok: false,
+        status: 0,
+        error: STATIC_SYNC_UNAVAILABLE
+      }
+    };
+  }
+
   if (
     (apiPath === "/api/weather" || apiPath === "/api/weather/daily" || apiPath === "/api/weather/benchmark" || apiPath === "/api/weather/history") &&
     method === "GET"
@@ -1119,11 +1564,14 @@ async function loadStaticBundle(force = false) {
   ]);
 
   const fileWatchlist = normalizeWatchlistPayload(watchlistFile);
-  const localWatchlist = loadLocalWatchlist();
-  const mergedWatchlist = {
-    updated_at_utc: localWatchlist.updated_at_utc || fileWatchlist.updated_at_utc || null,
-    locations: mergeLocationsStatic(fileWatchlist.locations, localWatchlist.locations)
-  };
+  const localWatchlist = normalizeWatchlistPayload(loadLocalWatchlist());
+  const hasLocalOverride = localWatchlist.updated_at_utc !== null || localWatchlist.locations.length > 0;
+  const mergedWatchlist = hasLocalOverride
+    ? localWatchlist
+    : {
+        updated_at_utc: fileWatchlist.updated_at_utc || null,
+        locations: mergeLocationsStatic(fileWatchlist.locations)
+      };
 
   staticBundleCache = {
     report: toObject(report) || {},
@@ -1211,6 +1659,7 @@ function buildDailyDataStatic(report, history, location) {
     wind_kph: toNumber(zone?.ensemble?.wind_max) ?? toNumber(latestForecast?.wind_max),
     updated_at: report?.generated_at_utc || history?.generated_at_utc || null,
     forecast_date: report?.forecast_date || latestForecast?.target_date || null,
+    mwis_links: resolveMwisLinksForLocation(report, location),
     suitability: zone?.suitability || null,
     source_forecasts: zone?.source_forecasts || null,
     reference: latestForecast
@@ -1276,7 +1725,7 @@ function buildHistoryDataStatic(history, location) {
   const forecastRows = forecasts
     .filter((item) => normalizeLocation(item?.location) === normalizedLocation)
     .sort((a, b) => `${b.target_date || ""}${b.run_date || ""}`.localeCompare(`${a.target_date || ""}${a.run_date || ""}`))
-    .slice(0, 10)
+    .slice(0, 60)
     .map((item) => ({
       kind: "forecast",
       date: item.target_date || null,
@@ -1292,7 +1741,7 @@ function buildHistoryDataStatic(history, location) {
 
   const combined = [...actualRows, ...forecastRows]
     .sort((a, b) => `${b.date || ""}`.localeCompare(`${a.date || ""}`))
-    .slice(0, 30);
+    .slice(0, 120);
 
   return {
     location,
@@ -1309,7 +1758,7 @@ function buildHistoryDataStatic(history, location) {
 function buildWatchlistPayloadStatic(bundle) {
   const dynamicLocations = collectKnownLocationsStatic(bundle.report, bundle.history, []);
   const customLocations = Array.isArray(bundle.watchlist?.locations) ? bundle.watchlist.locations : [];
-  const merged = mergeLocationsStatic(dynamicLocations, customLocations);
+  const merged = customLocations.length ? mergeLocationsStatic(customLocations) : dynamicLocations;
 
   return {
     generated_at_utc: bundle.report?.generated_at_utc || bundle.history?.generated_at_utc || null,
@@ -1539,6 +1988,64 @@ function getByPath(source, pathExpression) {
   return current;
 }
 
+function pickDetailWeatherIcon(condition, updatedAt) {
+  const text = `${condition || ""}`.toLowerCase();
+  const isNight = text.includes("night") || isLikelyNightTime(updatedAt);
+
+  if (text.includes("thunder") || text.includes("lightning") || text.includes("storm")) {
+    return { src: DETAIL_WEATHER_ICON_SET2.thunder, alt: "Thunderstorm" };
+  }
+
+  if (text.includes("tornado") || text.includes("cyclone") || text.includes("hurricane")) {
+    return { src: DETAIL_WEATHER_ICON_SET2.storm, alt: "Severe storm" };
+  }
+
+  if (text.includes("rain") || text.includes("shower") || text.includes("drizzle")) {
+    const heavyRain = text.includes("heavy") || text.includes("intense") || text.includes("downpour");
+    return heavyRain
+      ? { src: DETAIL_WEATHER_ICON_SET2.heavyRain, alt: "Heavy rain" }
+      : { src: DETAIL_WEATHER_ICON_SET2.rain, alt: "Rain" };
+  }
+
+  if (text.includes("snow") || text.includes("sleet") || text.includes("ice") || text.includes("frost") || text.includes("hail")) {
+    return { src: DETAIL_WEATHER_ICON_SET2.cold, alt: "Cold weather" };
+  }
+
+  if (text.includes("wind") || text.includes("gust") || text.includes("gale")) {
+    return { src: DETAIL_WEATHER_ICON_SET2.wind, alt: "Windy weather" };
+  }
+
+  if (text.includes("overcast") || text.includes("cloud") || text.includes("fog") || text.includes("mist") || text.includes("haze")) {
+    return { src: DETAIL_WEATHER_ICON_SET2.cloud, alt: "Cloudy weather" };
+  }
+
+  if (text.includes("clear") || text.includes("sun")) {
+    return isNight
+      ? { src: DETAIL_WEATHER_ICON_SET2.clearNight, alt: "Clear night" }
+      : { src: DETAIL_WEATHER_ICON_SET2.clearDay, alt: "Clear weather" };
+  }
+
+  if (isNight) {
+    return { src: DETAIL_WEATHER_ICON_SET2.clearNight, alt: "Night weather" };
+  }
+
+  return { src: DETAIL_WEATHER_ICON_SET2.fallback, alt: "Current weather" };
+}
+
+function isLikelyNightTime(value) {
+  if (!value) {
+    return false;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return false;
+  }
+
+  const hour = parsed.getHours();
+  return hour < 6 || hour >= 18;
+}
+
 function pickWeatherIcon(condition) {
   const text = `${condition || ""}`.toLowerCase();
   if (text.includes("thunder")) return "⛈️";
@@ -1660,6 +2167,24 @@ function formatTimeOnly(value) {
     hour: "numeric",
     minute: "2-digit"
   });
+}
+
+function normalizeDateKey(value) {
+  const raw = `${value || ""}`.trim();
+  if (!raw) {
+    return "";
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw;
+  }
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+
+  return parsed.toISOString().slice(0, 10);
 }
 
 function normalizeLocation(value) {
