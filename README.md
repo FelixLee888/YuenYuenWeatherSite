@@ -8,13 +8,22 @@ This project is intended to live at:
 `/Users/felixlee/Documents/YuenYuenWeatherSite`
 
 ## Data architecture
-Primary storage is Google Sheets:
+Primary storage is Google Sheets with tabular (column) storage, not raw JSON chunks:
 
 - Spreadsheet: `1g9_1I1xyt7iO922yNXckPswnqV5ATIzLo3NQ6IJ4O5k`
-- Tabs used by this project:
+- Tabs used by this project (column-based schema):
   - `weather_latest_report`
+  - `weather_latest_report_sources`
+  - `weather_latest_report_zones`
+  - `weather_latest_report_zone_sources`
+  - `weather_latest_report_mwis_links`
   - `weather_benchmarks_latest`
+  - `weather_benchmarks_latest_sources`
   - `weather_history_recent`
+  - `weather_history_recent_source_scores`
+  - `weather_history_recent_source_weights`
+  - `weather_history_recent_actuals`
+  - `weather_history_recent_forecasts`
   - `weather_watchlist`
 
 `public/data/*.json` is treated as website snapshot/cache for runtime consumption and GitHub Pages deploy.
