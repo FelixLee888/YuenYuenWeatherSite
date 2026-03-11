@@ -749,7 +749,10 @@ function renderNext7Forecast(dailyPayload, historyPayload, location) {
   elements.next7Grid.innerHTML = "";
 
   const fromDaily = normalizeDailyNext7ForecastRows(dailyPayload?.next_7_days, location);
-  const forecastRows = fromDaily.length ? fromDaily : buildNext7ForecastRows(historyPayload, location);
+  const fromSourceForecasts = buildNext7ForecastRowsFromSourceForecasts(dailyPayload?.source_forecasts, location);
+  const forecastRows = fromDaily.length
+    ? fromDaily
+    : (fromSourceForecasts.length ? fromSourceForecasts : buildNext7ForecastRows(historyPayload, location));
   if (!forecastRows.length) {
     const note = document.createElement("p");
     note.className = "muted";
@@ -829,6 +832,64 @@ function normalizeDailyNext7ForecastRows(rows, location) {
         sourceCount: Number.isFinite(sourceCount) && sourceCount > 0 ? Math.round(sourceCount) : 1
       };
     })
+    .filter(Boolean);
+}
+
+function buildNext7ForecastRowsFromSourceForecasts(sourceForecastsPayload, location) {
+  const sourceForecasts = toObject(sourceForecastsPayload) || {};
+  const groupedByDate = new Map();
+
+  for (const [sourceId, sourceData] of Object.entries(sourceForecasts)) {
+    const rows = Array.isArray(sourceData?.next_7_days) ? sourceData.next_7_days : [];
+    if (!rows.length) {
+      continue;
+    }
+
+    for (const raw of rows) {
+      const row = toObject(raw) || {};
+      const dateKey = normalizeDateKey(row.date || row.target_date || row.forecast_date);
+      if (!dateKey) {
+        continue;
+      }
+
+      let sourceKey = normalizeLocation(sourceData?.source_label || sourceId || "");
+      if (!sourceKey) {
+        sourceKey = "forecast-default";
+      }
+
+      if (!groupedByDate.has(dateKey)) {
+        groupedByDate.set(dateKey, new Map());
+      }
+
+      const sourceMap = groupedByDate.get(dateKey);
+      const runRank = resolveForecastRunRank(row);
+      const existing = sourceMap.get(sourceKey);
+      if (!existing || runRank > existing.runRank) {
+        sourceMap.set(sourceKey, {
+          row: {
+            ...row,
+            source: row.source || sourceId || null,
+            source_label: row.source_label || sourceData?.source_label || sourceId || null
+          },
+          runRank
+        });
+      }
+    }
+  }
+
+  const sortedDates = Array.from(groupedByDate.keys()).sort((a, b) => a.localeCompare(b));
+  if (!sortedDates.length) {
+    return [];
+  }
+
+  const todayKey = normalizeDateKey(new Date().toISOString());
+  const upcomingDates = todayKey ? sortedDates.filter((dateKey) => dateKey >= todayKey) : sortedDates;
+  const selectedDates = upcomingDates.length
+    ? upcomingDates.slice(0, 7)
+    : sortedDates.slice(Math.max(0, sortedDates.length - 7));
+
+  return selectedDates
+    .map((dateKey) => summarizeNext7ForecastDate(dateKey, Array.from(groupedByDate.get(dateKey)?.values() || []), location))
     .filter(Boolean);
 }
 
@@ -1971,7 +2032,10 @@ function buildDailyDataStatic(report, history, location) {
     mostCommonString(sourceForecastRows.map((row) => normalizeWindDirection(row?.wind_direction ?? row?.wind_dir)))
   );
   const next7FromZone = normalizeDailyNext7ForecastRows(zone?.next_7_days, location);
-  const next7Days = next7FromZone.length ? next7FromZone : buildNext7ForecastRows(history, location);
+  const next7FromSources = buildNext7ForecastRowsFromSourceForecasts(zone?.source_forecasts, location);
+  const next7Days = next7FromZone.length
+    ? next7FromZone
+    : (next7FromSources.length ? next7FromSources : buildNext7ForecastRows(history, location));
 
   return {
     location,
