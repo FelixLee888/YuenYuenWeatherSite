@@ -6,7 +6,10 @@
   "description": "Yuen Yuen's Weather website powered by local weather data snapshots",
   "scripts": {
     "dev": "node server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "sheet:import": "node scripts/google-sheet-weather-db.mjs import-from-json",
+    "sheet:export": "node scripts/google-sheet-weather-db.mjs export-to-json",
+    "sheet:verify": "node scripts/google-sheet-weather-db.mjs verify-roundtrip"
   },
   "engines": {
     "node": ">=20"

@@ -1,21 +1,36 @@
 # Yuen Yuen's Weather
 
-A modern weather dashboard powered by local weather JSON snapshots in `public/data`.
+A modern weather dashboard with Google Sheets as the external weather data database.
 
 ## Local path
 This project is intended to live at:
 
 `/Users/felixlee/Documents/YuenYuenWeatherSite`
 
-## Data source (all weather content)
-All weather content is loaded from these files:
+## Data architecture
+Primary storage is Google Sheets:
 
-- `public/data/weather_latest_report.json` (daily by location)
-- `public/data/weather_benchmarks_latest.json` (benchmark summary)
-- `public/data/weather_history_recent.json` (history + forecasts)
-- `public/data/weather_watchlist.json` (custom user-added locations)
+- Spreadsheet: `1g9_1I1xyt7iO922yNXckPswnqV5ATIzLo3NQ6IJ4O5k`
+- Tabs used by this project:
+  - `weather_latest_report`
+  - `weather_benchmarks_latest`
+  - `weather_history_recent`
+  - `weather_watchlist`
 
-The backend API reads these files on each request, so updates to the files are reflected immediately.
+`public/data/*.json` is treated as website snapshot/cache for runtime consumption and GitHub Pages deploy.
+
+## Environment
+Copy `.env.example` to `.env` and set credentials if you run Sheet sync locally.
+
+Required for Sheet sync:
+
+- `GOOGLE_SHEETS_SPREADSHEET_ID`
+- `GOOGLE_SERVICE_ACCOUNT_JSON`
+
+Alternative credentials:
+
+- `GOOGLE_SERVICE_ACCOUNT_EMAIL`
+- `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`
 
 ## Run locally
 ```bash
@@ -28,12 +43,31 @@ Open:
 
 [http://127.0.0.1:4173](http://127.0.0.1:4173)
 
-## Optional AIBot sync for new watchlist locations
-When users add a location from the UI, it is always saved to `public/data/weather_watchlist.json`.
+## Google Sheet sync commands
+```bash
+# Import current public/data JSON snapshots into Google Sheets
+npm run sheet:import
 
-If you also want to forward that location to Yuen Yuen AIBot, set:
+# Export from Google Sheets into public/data snapshots
+npm run sheet:export
 
-- `AIBOT_WATCHLIST_SYNC_URL` in `.env`
+# Verify JSON snapshots match what is stored in Google Sheets
+npm run sheet:verify
+```
+
+## Daily automation
+Workflows:
+
+- `.github/workflows/daily-weather-refresh.yml`
+  - Runs every morning 8:00 (Europe/London)
+  - Crawls weather via AIBot script
+  - Syncs JSON snapshots into Google Sheets DB
+  - Exports snapshots back from Google Sheets
+  - Pushes updated data to `main`
+- `.github/workflows/auto-deploy-gh-pages.yml`
+  - Deploys site to GitHub Pages when `main` changes
+- `.github/workflows/migrate-weather-data-to-google-sheet.yml`
+  - Manual one-time migration of existing JSON snapshots into Google Sheets
 
 ## API endpoints
 - `GET /health`
