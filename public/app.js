@@ -18,9 +18,20 @@ const GRADE_TO_SCORE = {
   excellent: 95
 };
 
+const LOCATION_COUNTRY_BY_NAME = {
+  glencoe: "United Kingdom",
+  "ben nevis": "United Kingdom",
+  glenshee: "United Kingdom",
+  cairngorms: "United Kingdom",
+  "passo del tonale": "Italy"
+};
+
 const APP_BASE_URL = new URL("./", window.location.href);
 const LOCAL_WATCHLIST_STORAGE_KEY = "yuen_yuen_weather_watchlist";
 const STATIC_SYNC_UNAVAILABLE = "GitHub Pages mode: AIBot watchlist sync is unavailable.";
+const SWIPE_MIN_DISTANCE_PX = 44;
+const SWIPE_DIRECTION_RATIO = 1.2;
+const SWIPE_CLICK_SUPPRESS_MS = 420;
 
 let staticBundleCache = null;
 
@@ -30,7 +41,14 @@ const state = {
   focusedLocation: "",
   selectedLocation: "",
   isMobileLayout: false,
-  isTransitioningDetail: false
+  isTransitioningDetail: false,
+  suppressDeckClickUntil: 0,
+  swipe: {
+    tracking: false,
+    startX: 0,
+    startY: 0,
+    handled: false
+  }
 };
 
 const elements = {
@@ -89,6 +107,11 @@ function bindEvents() {
   });
 
   elements.locationGrid.addEventListener("click", async (event) => {
+    if (Date.now() < state.suppressDeckClickUntil) {
+      event.preventDefault();
+      return;
+    }
+
     const button = getLocationButton(event);
     if (!button) {
       return;
@@ -100,14 +123,8 @@ function bindEvents() {
     }
 
     if (isMobileViewport()) {
-      const alreadyFocused = normalizeLocation(state.focusedLocation) === normalizeLocation(location);
-      if (alreadyFocused) {
-        await openDetailPage(location);
-        return;
-      }
-
       updateFocusedCard(location);
-      setStatus(`Tap ${location} again to open detail view.`);
+      await openDetailPage(location);
       return;
     }
 
@@ -132,6 +149,11 @@ function bindEvents() {
 
     await openDetailPage(location);
   });
+
+  elements.locationGrid.addEventListener("touchstart", handleDeckTouchStart, { passive: true });
+  elements.locationGrid.addEventListener("touchmove", handleDeckTouchMove, { passive: true });
+  elements.locationGrid.addEventListener("touchend", handleDeckTouchEnd, { passive: true });
+  elements.locationGrid.addEventListener("touchcancel", handleDeckTouchEnd, { passive: true });
 
   window.addEventListener("resize", () => {
     const mobileNow = isMobileViewport();
@@ -294,7 +316,7 @@ function showOverviewPage() {
   elements.detailPage.classList.add("is-hidden");
   window.history.replaceState(window.history.state, "", window.location.pathname);
   const hint = isMobileViewport()
-    ? "Showing predefined locations. Tap a focused card again for details."
+    ? "Showing predefined locations. Swipe to browse, tap a card for details."
     : "Showing predefined locations. Double-click a card for details.";
   setStatus(hint);
 }
@@ -321,7 +343,7 @@ function renderLocationCards() {
   }
 
   const actionHint = isMobileViewport()
-    ? "Tap again for detail view"
+    ? "Swipe or tap for detail"
     : "Double-click for detail view";
 
   for (let index = 0; index < state.locations.length; index += 1) {
@@ -342,7 +364,8 @@ function renderLocationCards() {
     const tempValue = toNumber(temp);
     const tone = CARD_TONES[index % CARD_TONES.length];
     const displayTemp = tempValue === null ? "--" : tempValue.toFixed(0);
-    const displayCondition = shortText(condition, 74);
+    const displayCondition = cleanConditionForCard(location, condition);
+    const country = resolveCountryForLocation(location);
 
     const button = document.createElement("button");
     button.type = "button";
@@ -360,7 +383,7 @@ function renderLocationCards() {
       <div class="location-head">
         <div class="location-title-wrap">
           <h3 class="location-name">${escapeHtml(location)}</h3>
-          <p class="location-label">Live weather</p>
+          <p class="location-label">${escapeHtml(country)}</p>
         </div>
         <p class="location-time">${escapeHtml(formatTimeOnly(updatedAt))}</p>
       </div>
@@ -687,6 +710,116 @@ function getLocationButton(event) {
   }
 
   return target.closest("button[data-location]");
+}
+
+function resolveCountryForLocation(location) {
+  const normalized = normalizeLocation(location);
+  if (normalized && LOCATION_COUNTRY_BY_NAME[normalized]) {
+    return LOCATION_COUNTRY_BY_NAME[normalized];
+  }
+
+  const parts = `${location || ""}`
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length >= 2) {
+    const country = parts[parts.length - 1];
+    if (country.length <= 3) {
+      return country.toUpperCase();
+    }
+    return country;
+  }
+
+  return "Unknown Country";
+}
+
+function cleanConditionForCard(location, condition) {
+  const original = `${condition || ""}`.trim();
+  if (!original) {
+    return "N/A";
+  }
+
+  const escapedLocation = escapeRegExp(`${location || ""}`.trim());
+  let cleaned = original;
+
+  if (escapedLocation) {
+    cleaned = cleaned.replace(new RegExp(`^[\\s\\-–—]*${escapedLocation}[\\s\\-–—:]*`, "i"), "");
+  }
+
+  cleaned = cleaned.replace(/^[\s\-–—:;,]+/, "").trim();
+  return cleaned || original;
+}
+
+function isOverviewVisible() {
+  return !elements.overviewPage.classList.contains("is-hidden");
+}
+
+function handleDeckTouchStart(event) {
+  if (!isMobileViewport() || state.isTransitioningDetail || !isOverviewVisible()) {
+    return;
+  }
+
+  if (event.touches.length !== 1) {
+    state.swipe.tracking = false;
+    return;
+  }
+
+  const touch = event.touches[0];
+  state.swipe.tracking = true;
+  state.swipe.startX = touch.clientX;
+  state.swipe.startY = touch.clientY;
+  state.swipe.handled = false;
+}
+
+function handleDeckTouchMove(event) {
+  if (!state.swipe.tracking || state.swipe.handled || event.touches.length !== 1) {
+    return;
+  }
+
+  const touch = event.touches[0];
+  const deltaX = touch.clientX - state.swipe.startX;
+  const deltaY = touch.clientY - state.swipe.startY;
+  const absX = Math.abs(deltaX);
+  const absY = Math.abs(deltaY);
+
+  if (absX < SWIPE_MIN_DISTANCE_PX) {
+    return;
+  }
+
+  if (absX <= absY * SWIPE_DIRECTION_RATIO) {
+    return;
+  }
+
+  state.swipe.handled = true;
+  state.suppressDeckClickUntil = Date.now() + SWIPE_CLICK_SUPPRESS_MS;
+  shiftFocusedCard(deltaX < 0 ? 1 : -1);
+}
+
+function handleDeckTouchEnd() {
+  state.swipe.tracking = false;
+  state.swipe.handled = false;
+}
+
+function shiftFocusedCard(directionStep) {
+  if (!Array.isArray(state.locations) || !state.locations.length) {
+    return false;
+  }
+
+  const focusedIndex = Math.max(
+    0,
+    state.locations.findIndex((location) => normalizeLocation(location) === normalizeLocation(state.focusedLocation))
+  );
+
+  const nextIndex = Math.min(state.locations.length - 1, Math.max(0, focusedIndex + directionStep));
+  if (nextIndex === focusedIndex) {
+    return false;
+  }
+
+  const nextLocation = state.locations[nextIndex];
+  updateFocusedCard(nextLocation);
+  setStatus(`Focused ${nextLocation} (${nextIndex + 1}/${state.locations.length}).`);
+  return true;
 }
 
 function setLoading(isLoading) {
@@ -1531,6 +1664,10 @@ function formatTimeOnly(value) {
 
 function normalizeLocation(value) {
   return `${value || ""}`.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function escapeRegExp(value) {
+  return `${value || ""}`.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function toNumber(value) {
