@@ -1300,6 +1300,90 @@ function canonicalize(value) {
   return value;
 }
 
+function normalizeDateKey(value) {
+  const raw = `${value || ""}`.trim();
+  if (!raw) {
+    return "";
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw;
+  }
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+
+  return parsed.toISOString().slice(0, 10);
+}
+
+function dateKeyToUtcMs(dateKey) {
+  const normalized = normalizeDateKey(dateKey);
+  if (!normalized) {
+    return null;
+  }
+  const parsed = Date.parse(`${normalized}T00:00:00Z`);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function mergeHistoryRows({
+  existingRows,
+  incomingRows,
+  keyFn,
+  dateFn,
+  sortFn,
+  cutoffDateKey
+}) {
+  const merged = new Map();
+
+  for (const row of existingRows || []) {
+    const key = keyFn(row);
+    if (!key) {
+      continue;
+    }
+    merged.set(key, row);
+  }
+
+  for (const row of incomingRows || []) {
+    const key = keyFn(row);
+    if (!key) {
+      continue;
+    }
+    merged.set(key, row);
+  }
+
+  const cutoffMs = dateKeyToUtcMs(cutoffDateKey);
+  const rows = Array.from(merged.values()).filter((row) => {
+    if (cutoffMs === null) {
+      return true;
+    }
+    const rowDateMs = dateKeyToUtcMs(dateFn(row));
+    if (rowDateMs === null) {
+      return true;
+    }
+    return rowDateMs >= cutoffMs;
+  });
+
+  rows.sort(sortFn);
+  return rows.map((row, index) => ({
+    ...row,
+    row_order: index
+  }));
+}
+
+function buildHistoryRetentionPlan(tableRows) {
+  const meta = Array.isArray(tableRows.history_meta) ? tableRows.history_meta[0] || {} : {};
+  const windowDaysRaw = Number(meta.window_days);
+  const windowDays = Number.isFinite(windowDaysRaw) && windowDaysRaw > 0 ? Math.round(windowDaysRaw) : 14;
+  const anchorDateKey = normalizeDateKey(meta.run_date) || normalizeDateKey(new Date().toISOString());
+  const anchorMs = dateKeyToUtcMs(anchorDateKey);
+  const cutoffMs = anchorMs === null ? null : anchorMs - Math.max(0, windowDays - 1) * 24 * 60 * 60 * 1000;
+  const cutoffDateKey = cutoffMs === null ? "" : new Date(cutoffMs).toISOString().slice(0, 10);
+
+  return { windowDays, anchorDateKey, cutoffDateKey };
+}
+
 async function importFromJson(args) {
   const accessToken = await fetchGoogleAccessToken();
   await ensureSheets(accessToken, args.spreadsheetId);
@@ -1318,6 +1402,93 @@ async function importFromJson(args) {
     const watchlist = await readLocalJson(args.dataDir, "weather_watchlist.json");
     Object.assign(tableRows, watchlistJsonToTable(watchlist));
   }
+
+  const { windowDays, anchorDateKey, cutoffDateKey } = buildHistoryRetentionPlan(tableRows);
+  const existingHistory = {
+    history_source_scores: await readTableRows(accessToken, args.spreadsheetId, "history_source_scores"),
+    history_source_weights: await readTableRows(accessToken, args.spreadsheetId, "history_source_weights"),
+    history_actuals: await readTableRows(accessToken, args.spreadsheetId, "history_actuals"),
+    history_forecasts: await readTableRows(accessToken, args.spreadsheetId, "history_forecasts")
+  };
+
+  tableRows.history_source_scores = mergeHistoryRows({
+    existingRows: existingHistory.history_source_scores,
+    incomingRows: tableRows.history_source_scores || [],
+    keyFn: (row) => `${normalizeDateKey(row?.date)}|${`${row?.source || ""}`.trim().toLowerCase()}`,
+    dateFn: (row) => normalizeDateKey(row?.date),
+    sortFn: (left, right) => {
+      const ld = normalizeDateKey(left?.date);
+      const rd = normalizeDateKey(right?.date);
+      if (ld !== rd) {
+        return ld.localeCompare(rd);
+      }
+      return `${left?.source || ""}`.localeCompare(`${right?.source || ""}`);
+    },
+    cutoffDateKey
+  });
+
+  tableRows.history_source_weights = mergeHistoryRows({
+    existingRows: existingHistory.history_source_weights,
+    incomingRows: tableRows.history_source_weights || [],
+    keyFn: (row) => `${normalizeDateKey(row?.date)}|${`${row?.source || ""}`.trim().toLowerCase()}`,
+    dateFn: (row) => normalizeDateKey(row?.date),
+    sortFn: (left, right) => {
+      const ld = normalizeDateKey(left?.date);
+      const rd = normalizeDateKey(right?.date);
+      if (ld !== rd) {
+        return ld.localeCompare(rd);
+      }
+      return `${left?.source || ""}`.localeCompare(`${right?.source || ""}`);
+    },
+    cutoffDateKey
+  });
+
+  tableRows.history_actuals = mergeHistoryRows({
+    existingRows: existingHistory.history_actuals,
+    incomingRows: tableRows.history_actuals || [],
+    keyFn: (row) => `${normalizeDateKey(row?.date)}|${`${row?.location || ""}`.trim().toLowerCase()}`,
+    dateFn: (row) => normalizeDateKey(row?.date),
+    sortFn: (left, right) => {
+      const ld = normalizeDateKey(left?.date);
+      const rd = normalizeDateKey(right?.date);
+      if (ld !== rd) {
+        return ld.localeCompare(rd);
+      }
+      return `${left?.location || ""}`.localeCompare(`${right?.location || ""}`);
+    },
+    cutoffDateKey
+  });
+
+  tableRows.history_forecasts = mergeHistoryRows({
+    existingRows: existingHistory.history_forecasts,
+    incomingRows: tableRows.history_forecasts || [],
+    keyFn: (row) =>
+      `${normalizeDateKey(row?.run_date)}|${normalizeDateKey(row?.target_date)}|${`${row?.source || ""}`.trim().toLowerCase()}|${`${row?.location || ""}`.trim().toLowerCase()}`,
+    dateFn: (row) => normalizeDateKey(row?.target_date || row?.run_date),
+    sortFn: (left, right) => {
+      const lTarget = normalizeDateKey(left?.target_date);
+      const rTarget = normalizeDateKey(right?.target_date);
+      if (lTarget !== rTarget) {
+        return lTarget.localeCompare(rTarget);
+      }
+      const lRun = normalizeDateKey(left?.run_date);
+      const rRun = normalizeDateKey(right?.run_date);
+      if (lRun !== rRun) {
+        return lRun.localeCompare(rRun);
+      }
+      const lSource = `${left?.source || ""}`;
+      const rSource = `${right?.source || ""}`;
+      if (lSource !== rSource) {
+        return lSource.localeCompare(rSource);
+      }
+      return `${left?.location || ""}`.localeCompare(`${right?.location || ""}`);
+    },
+    cutoffDateKey
+  });
+
+  console.log(
+    `History retention merge: anchor=${anchorDateKey || "n/a"} window_days=${windowDays} cutoff=${cutoffDateKey || "n/a"}`
+  );
 
   for (const [tableKey, rows] of Object.entries(tableRows)) {
     await writeTableRows(accessToken, args.spreadsheetId, tableKey, rows);
