@@ -1970,7 +1970,8 @@ function buildDailyDataStatic(report, history, location) {
     normalizeWindDirection(latestForecast?.wind_direction ?? latestForecast?.wind_dir),
     mostCommonString(sourceForecastRows.map((row) => normalizeWindDirection(row?.wind_direction ?? row?.wind_dir)))
   );
-  const next7Days = buildNext7ForecastRows(history, location);
+  const next7FromZone = normalizeDailyNext7ForecastRows(zone?.next_7_days, location);
+  const next7Days = next7FromZone.length ? next7FromZone : buildNext7ForecastRows(history, location);
 
   return {
     location,

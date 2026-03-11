@@ -5,6 +5,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+  workflow_run:
+    workflows:
+      - Daily Weather Data Refresh
+    types:
+      - completed
 
 permissions:
   contents: write
@@ -15,14 +20,40 @@ concurrency:
 
 jobs:
   deploy:
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate Google Sheets credentials
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "${GOOGLE_SERVICE_ACCOUNT_JSON}" ]; then
+            echo "Missing secret GOOGLE_SERVICE_ACCOUNT_JSON"
+            exit 1
+          fi
+
+      - name: Export weather snapshots from Google Sheet
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          mkdir -p public/data
+          node scripts/google-sheet-weather-db.mjs export-to-json --spreadsheet-id 1g9_1I1xyt7iO922yNXckPswnqV5ATIzLo3NQ6IJ4O5k --data-dir public/data --include-watchlist-json
+
       - name: Prepare static bundle
         run: |
           test -d public
+          test -f public/data/weather_latest_report.json
+          test -f public/data/weather_benchmarks_latest.json
+          test -f public/data/weather_history_recent.json
+          test -f public/data/weather_watchlist.json
           echo "Deploying static site from ./public"
 
       - name: Deploy to gh-pages branch

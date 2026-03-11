@@ -5,9 +5,14 @@ on:
     # 08:00 Europe/London year-round (07:00 UTC in BST, 08:00 UTC in GMT)
     - cron: "0 7,8 * * *"
   workflow_dispatch:
+    inputs:
+      aibot_ref:
+        description: "AIBot git ref (branch/tag/commit)"
+        required: false
+        default: "main"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: daily-weather-refresh
@@ -50,7 +55,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: FelixLee888/AIBot
-          ref: main
+          ref: ${{ github.event.inputs.aibot_ref || 'main' }}
           path: aibot
           fetch-depth: 1
 
@@ -72,12 +77,6 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install requests
 
-      - name: Configure git identity
-        if: steps.gate.outputs.run == 'true'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
       - name: Validate Google Sheets credentials
         if: steps.gate.outputs.run == 'true'
         env:
@@ -93,7 +92,6 @@ jobs:
         run: |
           node scripts/refresh-weather-data.mjs --mode full
         env:
-          WATCHLIST_PATH: public/data/weather_watchlist.json
           AIBOT_SCRIPT_PATH: aibot/scripts/weather_mountains_briefing.py
           WEATHER_SITE_REPO_PATH: ${{ github.workspace }}
           WEATHER_SITE_DATA_SUBDIR: public/data
@@ -105,26 +103,3 @@ jobs:
           WEATHER_GOOGLE_SHEET_DIRECT_WRITE: '1'
           WEATHER_GOOGLE_SHEET_ID: 1g9_1I1xyt7iO922yNXckPswnqV5ATIzLo3NQ6IJ4O5k
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-
-      - name: Export snapshots from Google Sheet DB
-        if: steps.gate.outputs.run == 'true'
-        run: |
-          node scripts/google-sheet-weather-db.mjs export-to-json --spreadsheet-id 1g9_1I1xyt7iO922yNXckPswnqV5ATIzLo3NQ6IJ4O5k
-        env:
-          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-
-      - name: Verify Sheet and JSON are consistent
-        if: steps.gate.outputs.run == 'true'
-        run: |
-          node scripts/google-sheet-weather-db.mjs verify-roundtrip --spreadsheet-id 1g9_1I1xyt7iO922yNXckPswnqV5ATIzLo3NQ6IJ4O5k
-        env:
-          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-
-      - name: Commit and push weather snapshot updates
-        if: steps.gate.outputs.run == 'true'
-        run: |
-          git add public/data/weather_latest_report.json public/data/weather_benchmarks_latest.json public/data/weather_history_recent.json public/data/weather_watchlist.json
-          if ! git diff --cached --quiet; then
-            git commit -m "chore(weather-data): sync weather snapshots from Google Sheets"
-          fi
-          git push origin HEAD:main

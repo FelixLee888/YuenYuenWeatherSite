@@ -11,8 +11,7 @@ const SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
 const DATA_FILES = {
   weather_latest_report: "weather_latest_report.json",
   weather_benchmarks_latest: "weather_benchmarks_latest.json",
-  weather_history_recent: "weather_history_recent.json",
-  weather_watchlist: "weather_watchlist.json"
+  weather_history_recent: "weather_history_recent.json"
 };
 
 const SOURCE_BUCKETS = ["configured", "available", "used_for_report", "missing_api_keys", "skipped_errors"];
@@ -70,6 +69,25 @@ const TABLE_DEFS = {
       { name: "wind_max", type: "nullable_number" },
       { name: "rainfall_chance", type: "nullable_number" },
       { name: "wind_direction", type: "nullable_string" }
+    ]
+  },
+  latest_next7: {
+    tab: "weather_latest_report_next7",
+    columns: [
+      { name: "zone_order", type: "integer" },
+      { name: "name", type: "string" },
+      { name: "source_order", type: "integer" },
+      { name: "source", type: "string" },
+      { name: "source_label", type: "string" },
+      { name: "day_order", type: "integer" },
+      { name: "date", type: "string" },
+      { name: "temp_min", type: "nullable_number" },
+      { name: "temp_max", type: "nullable_number" },
+      { name: "wind_max", type: "nullable_number" },
+      { name: "rainfall_chance", type: "nullable_number" },
+      { name: "wind_direction", type: "nullable_string" },
+      { name: "condition", type: "nullable_string" },
+      { name: "source_count", type: "nullable_integer" }
     ]
   },
   latest_mwis_links: {
@@ -193,7 +211,8 @@ function parseArgs(argv) {
   const args = {
     command: "",
     spreadsheetId: process.env.GOOGLE_SHEETS_SPREADSHEET_ID || "",
-    dataDir: process.env.WEATHER_DATA_DIR || "public/data"
+    dataDir: process.env.WEATHER_DATA_DIR || "public/data",
+    includeWatchlistJson: (process.env.WEATHER_INCLUDE_WATCHLIST_JSON || "0").trim() === "1"
   };
 
   const positional = [];
@@ -211,6 +230,11 @@ function parseArgs(argv) {
     if (arg === "--data-dir" && next) {
       args.dataDir = next;
       i += 1;
+      continue;
+    }
+
+    if (arg === "--include-watchlist-json") {
+      args.includeWatchlistJson = true;
       continue;
     }
 
@@ -536,6 +560,106 @@ async function writeLocalJson(dataDir, filename, value) {
   await fs.writeFile(filePath, body, "utf8");
 }
 
+function toNullableNumber(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value === "string" && value.trim() === "") {
+    return null;
+  }
+
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function pickRainfallChanceFromPayload(source) {
+  if (!source || typeof source !== "object") {
+    return null;
+  }
+
+  const candidates = [
+    source.rainfall_chance,
+    source.rain_chance,
+    source.precip_probability,
+    source.precip_chance,
+    source.chance_of_rain,
+    source.pop
+  ];
+
+  for (const value of candidates) {
+    const numeric = toNullableNumber(value);
+    if (numeric !== null) {
+      return numeric;
+    }
+  }
+
+  return null;
+}
+
+function pickWindDirectionFromPayload(source) {
+  if (!source || typeof source !== "object") {
+    return "";
+  }
+
+  const candidates = [
+    source.wind_direction,
+    source.wind_dir,
+    source.wind_bearing,
+    source.wind_deg,
+    source.wind_degree
+  ];
+
+  for (const value of candidates) {
+    const text = `${value ?? ""}`.trim();
+    if (text) {
+      return text;
+    }
+  }
+
+  return "";
+}
+
+function extractNext7Rows(source) {
+  if (!source || typeof source !== "object") {
+    return [];
+  }
+
+  const candidates = [
+    source.next_7_days,
+    source.next7,
+    source.next7_days,
+    source.seven_day_outlook,
+    source.outlook_7_days
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate;
+    }
+  }
+
+  return [];
+}
+
+function normalizeNext7Row(raw) {
+  const row = raw && typeof raw === "object" ? raw : {};
+  const date = `${row.date ?? row.target_date ?? row.forecast_date ?? ""}`.trim();
+  if (!date) {
+    return null;
+  }
+
+  return {
+    date,
+    temp_min: toNullableNumber(row.temp_min ?? row.low),
+    temp_max: toNullableNumber(row.temp_max ?? row.high),
+    wind_max: toNullableNumber(row.wind_max ?? row.wind_kph ?? row.wind),
+    rainfall_chance: pickRainfallChanceFromPayload(row),
+    wind_direction: pickWindDirectionFromPayload(row),
+    condition: `${row.condition ?? row.summary ?? row.description ?? ""}`.trim() || null,
+    source_count: toNullableNumber(row.source_count ?? row.sourceCount)
+  };
+}
+
 function latestJsonToTables(latest) {
   const payload = latest && typeof latest === "object" ? latest : {};
 
@@ -565,6 +689,7 @@ function latestJsonToTables(latest) {
 
   const latestZones = [];
   const latestZoneSources = [];
+  const latestNext7 = [];
   const zones = Array.isArray(payload.zones) ? payload.zones : [];
   for (let zoneOrder = 0; zoneOrder < zones.length; zoneOrder += 1) {
     const zone = zones[zoneOrder] && typeof zones[zoneOrder] === "object" ? zones[zoneOrder] : {};
@@ -579,8 +704,8 @@ function latestJsonToTables(latest) {
       ensemble_temp_min: ensemble.temp_min ?? null,
       ensemble_temp_max: ensemble.temp_max ?? null,
       ensemble_wind_max: ensemble.wind_max ?? null,
-      ensemble_rainfall_chance: ensemble.rainfall_chance ?? null,
-      ensemble_wind_direction: `${ensemble.wind_direction ?? ""}`,
+      ensemble_rainfall_chance: pickRainfallChanceFromPayload(ensemble) ?? pickRainfallChanceFromPayload(zone),
+      ensemble_wind_direction: pickWindDirectionFromPayload(ensemble) || pickWindDirectionFromPayload(zone),
       ensemble_spread_temp: ensemble.spread_temp ?? null,
       ensemble_spread_wind: ensemble.spread_wind ?? null,
       briefing: `${zone.briefing ?? ""}`,
@@ -588,6 +713,30 @@ function latestJsonToTables(latest) {
       suitability_hiking: `${suitability.hiking ?? ""}`,
       suitability_skiing: `${suitability.skiing ?? ""}`
     });
+
+    const ensembleNext7 = extractNext7Rows(zone);
+    for (let dayOrder = 0; dayOrder < ensembleNext7.length; dayOrder += 1) {
+      const normalized = normalizeNext7Row(ensembleNext7[dayOrder]);
+      if (!normalized) {
+        continue;
+      }
+      latestNext7.push({
+        zone_order: zoneOrder,
+        name: `${zone.name ?? ""}`,
+        source_order: -1,
+        source: "ensemble",
+        source_label: "Ensemble",
+        day_order: dayOrder,
+        date: normalized.date,
+        temp_min: normalized.temp_min,
+        temp_max: normalized.temp_max,
+        wind_max: normalized.wind_max,
+        rainfall_chance: normalized.rainfall_chance,
+        wind_direction: normalized.wind_direction,
+        condition: normalized.condition,
+        source_count: normalized.source_count
+      });
+    }
 
     const sourceForecasts = zone.source_forecasts && typeof zone.source_forecasts === "object" ? zone.source_forecasts : {};
     let sourceOrder = 0;
@@ -602,9 +751,33 @@ function latestJsonToTables(latest) {
         temp_min: metrics.temp_min ?? null,
         temp_max: metrics.temp_max ?? null,
         wind_max: metrics.wind_max ?? null,
-        rainfall_chance: metrics.rainfall_chance ?? null,
-        wind_direction: `${metrics.wind_direction ?? ""}`
+        rainfall_chance: pickRainfallChanceFromPayload(metrics),
+        wind_direction: pickWindDirectionFromPayload(metrics)
       });
+
+      const sourceNext7 = extractNext7Rows(metrics);
+      for (let dayOrder = 0; dayOrder < sourceNext7.length; dayOrder += 1) {
+        const normalized = normalizeNext7Row(sourceNext7[dayOrder]);
+        if (!normalized) {
+          continue;
+        }
+        latestNext7.push({
+          zone_order: zoneOrder,
+          name: `${zone.name ?? ""}`,
+          source_order: sourceOrder,
+          source,
+          source_label: `${metrics.source_label ?? source}`,
+          day_order: dayOrder,
+          date: normalized.date,
+          temp_min: normalized.temp_min,
+          temp_max: normalized.temp_max,
+          wind_max: normalized.wind_max,
+          rainfall_chance: normalized.rainfall_chance,
+          wind_direction: normalized.wind_direction,
+          condition: normalized.condition,
+          source_count: normalized.source_count
+        });
+      }
       sourceOrder += 1;
     }
   }
@@ -623,6 +796,7 @@ function latestJsonToTables(latest) {
     latest_sources: latestSources,
     latest_zones: latestZones,
     latest_zone_sources: latestZoneSources,
+    latest_next7: latestNext7,
     latest_mwis_links: latestMwisLinks
   };
 }
@@ -888,6 +1062,98 @@ function latestTablesToJson(tables) {
     };
   }
 
+  const next7ByZone = new Map();
+  for (const row of sortRows(tables.latest_next7 || [], "zone_order", "source_order", "day_order")) {
+    const zoneOrder = Number(row.zone_order);
+    if (!Number.isFinite(zoneOrder)) {
+      continue;
+    }
+
+    if (!zoneMap.has(zoneOrder)) {
+      zoneMap.set(zoneOrder, {
+        name: `${row.name || ""}`,
+        lat: null,
+        lon: null,
+        ensemble: {
+          temp_min: null,
+          temp_max: null,
+          wind_max: null,
+          rainfall_chance: null,
+          wind_direction: null,
+          spread_temp: null,
+          spread_wind: null
+        },
+        briefing: "",
+        suitability: {
+          cycling: "",
+          hiking: "",
+          skiing: ""
+        },
+        source_forecasts: {}
+      });
+    }
+
+    const source = `${row.source || ""}`.trim() || "ensemble";
+    const sourceLabel = `${row.source_label || source}`.trim() || source;
+    if (!next7ByZone.has(zoneOrder)) {
+      next7ByZone.set(zoneOrder, new Map());
+    }
+    const bySource = next7ByZone.get(zoneOrder);
+    if (!bySource.has(source)) {
+      bySource.set(source, {
+        sourceLabel,
+        entries: []
+      });
+    }
+
+    const date = `${row.date || ""}`.trim();
+    if (!date) {
+      continue;
+    }
+
+    const entry = {
+      date,
+      temp_min: row.temp_min ?? null,
+      temp_max: row.temp_max ?? null,
+      wind_max: row.wind_max ?? null,
+      ...(row.rainfall_chance !== null && row.rainfall_chance !== undefined ? { rainfall_chance: row.rainfall_chance } : {}),
+      ...(`${row.wind_direction || ""}`.trim() ? { wind_direction: `${row.wind_direction}`.trim() } : {}),
+      ...(`${row.condition || ""}`.trim() ? { condition: `${row.condition}`.trim() } : {}),
+      ...(row.source_count !== null && row.source_count !== undefined ? { source_count: row.source_count } : {})
+    };
+
+    bySource.get(source).entries.push(entry);
+  }
+
+  for (const [zoneOrder, bySource] of next7ByZone.entries()) {
+    const zone = zoneMap.get(zoneOrder);
+    if (!zone) {
+      continue;
+    }
+
+    for (const [source, sourceData] of bySource.entries()) {
+      const entries = Array.isArray(sourceData?.entries) ? sourceData.entries : [];
+      if (!entries.length) {
+        continue;
+      }
+
+      if (source === "ensemble") {
+        zone.next_7_days = entries;
+        continue;
+      }
+
+      if (!zone.source_forecasts[source]) {
+        zone.source_forecasts[source] = {
+          source_label: `${sourceData?.sourceLabel || source}`
+        };
+      } else if (!`${zone.source_forecasts[source]?.source_label || ""}`.trim()) {
+        zone.source_forecasts[source].source_label = `${sourceData?.sourceLabel || source}`;
+      }
+
+      zone.source_forecasts[source].next_7_days = entries;
+    }
+  }
+
   const zones = Array.from(zoneMap.entries())
     .sort((left, right) => left[0] - right[0])
     .map((entry) => entry[1]);
@@ -1041,14 +1307,17 @@ async function importFromJson(args) {
   const latest = await readLocalJson(args.dataDir, DATA_FILES.weather_latest_report);
   const benchmarks = await readLocalJson(args.dataDir, DATA_FILES.weather_benchmarks_latest);
   const history = await readLocalJson(args.dataDir, DATA_FILES.weather_history_recent);
-  const watchlist = await readLocalJson(args.dataDir, DATA_FILES.weather_watchlist);
 
   const tableRows = {
     ...latestJsonToTables(latest),
     ...benchmarksJsonToTables(benchmarks),
-    ...historyJsonToTables(history),
-    ...watchlistJsonToTable(watchlist)
+    ...historyJsonToTables(history)
   };
+
+  if (args.includeWatchlistJson) {
+    const watchlist = await readLocalJson(args.dataDir, "weather_watchlist.json");
+    Object.assign(tableRows, watchlistJsonToTable(watchlist));
+  }
 
   for (const [tableKey, rows] of Object.entries(tableRows)) {
     await writeTableRows(accessToken, args.spreadsheetId, tableKey, rows);
@@ -1058,6 +1327,7 @@ async function importFromJson(args) {
 
 async function exportToJson(args) {
   const accessToken = await fetchGoogleAccessToken();
+  await ensureSheets(accessToken, args.spreadsheetId);
 
   const tables = {};
   for (const tableKey of Object.keys(TABLE_DEFS)) {
@@ -1067,18 +1337,22 @@ async function exportToJson(args) {
   const latest = latestTablesToJson(tables);
   const benchmarks = benchmarksTablesToJson(tables);
   const history = historyTablesToJson(tables);
-  const watchlist = watchlistTableToJson(tables);
 
   await writeLocalJson(args.dataDir, DATA_FILES.weather_latest_report, latest);
   await writeLocalJson(args.dataDir, DATA_FILES.weather_benchmarks_latest, benchmarks);
   await writeLocalJson(args.dataDir, DATA_FILES.weather_history_recent, history);
-  await writeLocalJson(args.dataDir, DATA_FILES.weather_watchlist, watchlist);
+
+  if (args.includeWatchlistJson) {
+    const watchlist = watchlistTableToJson(tables);
+    await writeLocalJson(args.dataDir, "weather_watchlist.json", watchlist);
+  }
 
   console.log("Exported Google Sheet tabular data back into public/data JSON snapshots.");
 }
 
 async function verifyRoundtrip(args) {
   const accessToken = await fetchGoogleAccessToken();
+  await ensureSheets(accessToken, args.spreadsheetId);
 
   const tables = {};
   for (const tableKey of Object.keys(TABLE_DEFS)) {
@@ -1088,11 +1362,19 @@ async function verifyRoundtrip(args) {
   const remoteByFile = {
     [DATA_FILES.weather_latest_report]: latestTablesToJson(tables),
     [DATA_FILES.weather_benchmarks_latest]: benchmarksTablesToJson(tables),
-    [DATA_FILES.weather_history_recent]: historyTablesToJson(tables),
-    [DATA_FILES.weather_watchlist]: watchlistTableToJson(tables)
+    [DATA_FILES.weather_history_recent]: historyTablesToJson(tables)
   };
 
-  for (const filename of Object.values(DATA_FILES)) {
+  if (args.includeWatchlistJson) {
+    remoteByFile["weather_watchlist.json"] = watchlistTableToJson(tables);
+  }
+
+  const filenames = [...Object.values(DATA_FILES)];
+  if (args.includeWatchlistJson) {
+    filenames.push("weather_watchlist.json");
+  }
+
+  for (const filename of filenames) {
     const local = await readLocalJson(args.dataDir, filename);
     const remote = remoteByFile[filename];
 
@@ -1126,7 +1408,7 @@ async function main() {
   }
 
   throw new Error(
-    "Usage: node scripts/google-sheet-weather-db.mjs <import-from-json|export-to-json|verify-roundtrip> [--spreadsheet-id <id>] [--data-dir public/data]"
+    "Usage: node scripts/google-sheet-weather-db.mjs <import-from-json|export-to-json|verify-roundtrip> [--spreadsheet-id <id>] [--data-dir public/data] [--include-watchlist-json]"
   );
 }
 

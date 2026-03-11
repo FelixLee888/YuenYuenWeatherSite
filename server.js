@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { existsSync, readFileSync } from "node:fs";
-import { readFile, stat, writeFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { createSign } from "node:crypto";
 import { fileURLToPath } from "node:url";
@@ -86,6 +86,25 @@ const SHEET_TABLE_DEFS = {
       { name: "wind_max", type: "nullable_number" },
       { name: "rainfall_chance", type: "nullable_number" },
       { name: "wind_direction", type: "nullable_string" }
+    ]
+  },
+  latest_next7: {
+    tab: "weather_latest_report_next7",
+    columns: [
+      { name: "zone_order", type: "integer" },
+      { name: "name", type: "string" },
+      { name: "source_order", type: "integer" },
+      { name: "source", type: "string" },
+      { name: "source_label", type: "string" },
+      { name: "day_order", type: "integer" },
+      { name: "date", type: "string" },
+      { name: "temp_min", type: "nullable_number" },
+      { name: "temp_max", type: "nullable_number" },
+      { name: "wind_max", type: "nullable_number" },
+      { name: "rainfall_chance", type: "nullable_number" },
+      { name: "wind_direction", type: "nullable_string" },
+      { name: "condition", type: "nullable_string" },
+      { name: "source_count", type: "nullable_integer" }
     ]
   },
   latest_mwis_links: {
@@ -208,15 +227,13 @@ const SHEET_TABLE_DEFS = {
 const DATA_FILES = {
   report: "weather_latest_report.json",
   benchmark: "weather_benchmarks_latest.json",
-  history: "weather_history_recent.json",
-  watchlist: "weather_watchlist.json"
+  history: "weather_history_recent.json"
 };
 
 const DATA_FILE_PATHS = {
   report: path.join(DATA_DIR, DATA_FILES.report),
   benchmark: path.join(DATA_DIR, DATA_FILES.benchmark),
-  history: path.join(DATA_DIR, DATA_FILES.history),
-  watchlist: path.join(DATA_DIR, DATA_FILES.watchlist)
+  history: path.join(DATA_DIR, DATA_FILES.history)
 };
 
 const MIME_TYPES = {
@@ -382,7 +399,7 @@ async function handleApi(req, res, requestUrl) {
       await saveCustomWatchlist({
         locations: nextLocations,
         updated_at_utc: new Date().toISOString()
-      }, bundle.storage);
+      });
     }
 
     const refreshedBundle = await loadWeatherBundle();
@@ -429,7 +446,7 @@ async function handleApi(req, res, requestUrl) {
     if (!hasLocation) {
       customWatchlist.locations.push(location);
       customWatchlist.updated_at_utc = new Date().toISOString();
-      await saveCustomWatchlist(customWatchlist, bundle.storage);
+      await saveCustomWatchlist(customWatchlist);
     }
 
     const syncResult = await trySyncWatchlistLocation(location);
@@ -440,7 +457,7 @@ async function handleApi(req, res, requestUrl) {
       source: refreshedBundle.source,
       location,
       added: !hasLocation,
-      message: hasLocation ? "Location already exists in local watchlist." : "Location added to local watchlist.",
+      message: hasLocation ? "Location already exists in watchlist." : "Location added to watchlist.",
       watchlist: buildWatchlistPayload(refreshedBundle),
       sync: syncResult
     });
@@ -916,6 +933,94 @@ function latestTablesToJson(tables) {
     };
   }
 
+  const next7ByZone = new Map();
+  for (const row of sortRowsByKeys(tables.latest_next7 || [], "zone_order", "source_order", "day_order")) {
+    const zoneOrder = Number(row?.zone_order);
+    if (!Number.isFinite(zoneOrder)) {
+      continue;
+    }
+
+    if (!zoneMap.has(zoneOrder)) {
+      zoneMap.set(zoneOrder, {
+        name: `${row?.name || ""}`,
+        lat: null,
+        lon: null,
+        ensemble: {
+          temp_min: null,
+          temp_max: null,
+          wind_max: null,
+          rainfall_chance: null,
+          wind_direction: null,
+          spread_temp: null,
+          spread_wind: null
+        },
+        briefing: "",
+        suitability: { cycling: "", hiking: "", skiing: "" },
+        source_forecasts: {}
+      });
+    }
+
+    const source = `${row?.source || ""}`.trim() || "ensemble";
+    const sourceLabel = `${row?.source_label || source}`.trim() || source;
+    if (!next7ByZone.has(zoneOrder)) {
+      next7ByZone.set(zoneOrder, new Map());
+    }
+    const bySource = next7ByZone.get(zoneOrder);
+    if (!bySource.has(source)) {
+      bySource.set(source, {
+        sourceLabel,
+        entries: []
+      });
+    }
+
+    const date = `${row?.date || ""}`.trim();
+    if (!date) {
+      continue;
+    }
+
+    const entry = {
+      date,
+      temp_min: row?.temp_min ?? null,
+      temp_max: row?.temp_max ?? null,
+      wind_max: row?.wind_max ?? null,
+      ...(row?.rainfall_chance !== null && row?.rainfall_chance !== undefined ? { rainfall_chance: row.rainfall_chance } : {}),
+      ...(`${row?.wind_direction || ""}`.trim() ? { wind_direction: `${row.wind_direction}`.trim() } : {}),
+      ...(`${row?.condition || ""}`.trim() ? { condition: `${row.condition}`.trim() } : {}),
+      ...(row?.source_count !== null && row?.source_count !== undefined ? { source_count: row.source_count } : {})
+    };
+
+    bySource.get(source).entries.push(entry);
+  }
+
+  for (const [zoneOrder, bySource] of next7ByZone.entries()) {
+    const zone = zoneMap.get(zoneOrder);
+    if (!zone) {
+      continue;
+    }
+
+    for (const [source, sourceData] of bySource.entries()) {
+      const entries = Array.isArray(sourceData?.entries) ? sourceData.entries : [];
+      if (!entries.length) {
+        continue;
+      }
+
+      if (source === "ensemble") {
+        zone.next_7_days = entries;
+        continue;
+      }
+
+      if (!zone.source_forecasts[source]) {
+        zone.source_forecasts[source] = {
+          source_label: `${sourceData?.sourceLabel || source}`
+        };
+      } else if (!`${zone.source_forecasts[source]?.source_label || ""}`.trim()) {
+        zone.source_forecasts[source].source_label = `${sourceData?.sourceLabel || source}`;
+      }
+
+      zone.source_forecasts[source].next_7_days = entries;
+    }
+  }
+
   const zones = Array.from(zoneMap.entries())
     .sort((left, right) => left[0] - right[0])
     .map((entry) => entry[1]);
@@ -1127,13 +1232,16 @@ async function loadWeatherBundle() {
     }
   }
 
-  const [report, benchmark, history, customWatchlist] = await Promise.all([
+  const [report, benchmark, history] = await Promise.all([
     readJsonFile(DATA_FILE_PATHS.report, {}),
     readJsonFile(DATA_FILE_PATHS.benchmark, {}),
-    readJsonFile(DATA_FILE_PATHS.history, {}),
-    loadCustomWatchlistFromJson()
+    readJsonFile(DATA_FILE_PATHS.history, {})
   ]);
 
+  const customWatchlist = {
+    locations: [],
+    updated_at_utc: null
+  };
   const knownLocations = collectKnownLocations(report, history, customWatchlist.locations);
 
   return {
@@ -1143,7 +1251,7 @@ async function loadWeatherBundle() {
     customWatchlist,
     knownLocations,
     source: "public/data",
-    storage: "json"
+    storage: "google-sheets"
   };
 }
 
@@ -1181,7 +1289,8 @@ function buildDailyData(report, history, location) {
     normalizeWindDirection(pickWindDirectionFromRecord(latestForecast)),
     mostCommonString(sourceForecastRows.map((row) => normalizeWindDirection(pickWindDirectionFromRecord(row))))
   );
-  const next7Days = buildNext7ForecastRowsFromHistory(history, location);
+  const next7FromZone = normalizeDailyNext7Rows(zone?.next_7_days, location);
+  const next7Days = next7FromZone.length ? next7FromZone : buildNext7ForecastRowsFromHistory(history, location);
 
   return {
     location,
@@ -1682,6 +1791,42 @@ function resolveForecastRunRank(record) {
   return 0;
 }
 
+function normalizeDailyNext7Rows(rows, location) {
+  if (!Array.isArray(rows) || !rows.length) {
+    return [];
+  }
+
+  return rows
+    .map((item) => {
+      const row = toObject(item) || {};
+      const date = normalizeDateKey(row.date || row.target_date || row.forecast_date);
+      if (!date) {
+        return null;
+      }
+
+      const tempMin = toNumber(row.temp_min ?? row.low);
+      const tempMax = toNumber(row.temp_max ?? row.high);
+      const temperature = toNumber(row.temperature) ?? averageValues(tempMin, tempMax);
+      const windKph = toNumber(row.wind_kph ?? row.wind_max ?? row.wind);
+      const rainfallChance = pickRainfallChanceFromRecord(row);
+      const windDirection = pickWindDirectionFromRecord(row);
+      const sourceCount = toNumber(row.source_count ?? row.sourceCount);
+
+      return {
+        date,
+        temperature: Number.isFinite(temperature) ? temperature : null,
+        temp_min: Number.isFinite(tempMin) ? tempMin : null,
+        temp_max: Number.isFinite(tempMax) ? tempMax : null,
+        wind_kph: Number.isFinite(windKph) ? windKph : null,
+        rainfall_chance: Number.isFinite(rainfallChance) ? rainfallChance : null,
+        wind_direction: windDirection || null,
+        condition: `${row.condition || row.summary || row.description || `Forecast snapshot for ${location}.`}`.trim(),
+        source_count: Number.isFinite(sourceCount) ? Math.max(1, Math.round(sourceCount)) : 1
+      };
+    })
+    .filter(Boolean);
+}
+
 function buildNext7ForecastRowsFromHistory(history, location) {
   const forecasts = Array.isArray(history?.forecasts) ? history.forecasts : [];
   const normalizedLocation = normalizeLocation(location);
@@ -1794,48 +1939,12 @@ function summarizeNext7ForecastDate(dateKey, entries, location) {
   };
 }
 
-async function loadCustomWatchlistFromJson() {
-  const loaded = await readJsonFile(DATA_FILE_PATHS.watchlist, {
-    locations: [],
-    updated_at_utc: null
-  });
-
-  if (Array.isArray(loaded)) {
-    return {
-      locations: loaded
-        .map((item) => (typeof item === "string" ? item.trim() : ""))
-        .filter(Boolean),
-      updated_at_utc: null
-    };
+async function saveCustomWatchlist(payload) {
+  if (!isGoogleSheetsReady()) {
+    throw new Error("Google Sheets watchlist storage is not configured.");
   }
 
-  const source = toObject(loaded) || {};
-  const rawLocations = Array.isArray(source.locations) ? source.locations : [];
-
-  return {
-    locations: rawLocations
-      .map((item) => (typeof item === "string" ? item.trim() : ""))
-      .filter(Boolean),
-    updated_at_utc: typeof source.updated_at_utc === "string" ? source.updated_at_utc : null
-  };
-}
-
-async function saveCustomWatchlistToJson(payload) {
-  const normalized = {
-    updated_at_utc: payload.updated_at_utc || new Date().toISOString(),
-    locations: mergeLocations(payload.locations || [])
-  };
-
-  await writeFile(DATA_FILE_PATHS.watchlist, `${JSON.stringify(normalized, null, 2)}\n`, "utf8");
-}
-
-async function saveCustomWatchlist(payload, storage = "json") {
-  if (storage === "google-sheets" && isGoogleSheetsReady()) {
-    await saveCustomWatchlistToGoogleSheets(payload);
-    return;
-  }
-
-  await saveCustomWatchlistToJson(payload);
+  await saveCustomWatchlistToGoogleSheets(payload);
 }
 
 async function buildDataFileMeta() {

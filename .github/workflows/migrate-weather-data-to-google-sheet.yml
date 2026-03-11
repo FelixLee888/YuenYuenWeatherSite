@@ -30,6 +30,10 @@ jobs:
 
       - name: Import existing JSON snapshots into Google Sheet DB
         run: |
+          if [ ! -f public/data/weather_latest_report.json ] || [ ! -f public/data/weather_benchmarks_latest.json ] || [ ! -f public/data/weather_history_recent.json ]; then
+            echo "No local weather snapshot JSON files found; skipping migration."
+            exit 0
+          fi
           node scripts/google-sheet-weather-db.mjs import-from-json --spreadsheet-id 1g9_1I1xyt7iO922yNXckPswnqV5ATIzLo3NQ6IJ4O5k
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}

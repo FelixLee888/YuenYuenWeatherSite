@@ -7,11 +7,16 @@ import process from "node:process";
 import { spawn } from "node:child_process";
 
 const GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search";
+const LOCAL_SNAPSHOT_FILES = [
+  "public/data/weather_latest_report.json",
+  "public/data/weather_benchmarks_latest.json",
+  "public/data/weather_history_recent.json",
+  "public/data/weather_watchlist.json"
+];
 
 function parseArgs(argv) {
   const args = {
     mode: process.env.WEATHER_BRIEFING_MODE || "full",
-    watchlist: process.env.WATCHLIST_PATH || "public/data/weather_watchlist.json",
     aibotScript: process.env.AIBOT_SCRIPT_PATH || "aibot/scripts/weather_mountains_briefing.py",
     sheetDirectWrite: (process.env.WEATHER_GOOGLE_SHEET_DIRECT_WRITE || "0").trim() === "1",
     spreadsheetId:
@@ -26,12 +31,6 @@ function parseArgs(argv) {
 
     if (arg === "--mode" && next) {
       args.mode = next;
-      index += 1;
-      continue;
-    }
-
-    if (arg === "--watchlist" && next) {
-      args.watchlist = next;
       index += 1;
       continue;
     }
@@ -96,6 +95,39 @@ function normalizeWatchlist(payload) {
   }
 
   return out;
+}
+
+async function loadWatchlistFromGoogleSheet(repoRoot, sheetImporterPath, spreadsheetId, env) {
+  const watchlistExportDir = path.join(repoRoot, ".tmp", "sheet-watchlist");
+  const watchlistJsonPath = path.join(watchlistExportDir, "weather_watchlist.json");
+  await fs.mkdir(watchlistExportDir, { recursive: true });
+
+  await runCommand(
+    "node",
+    [
+      sheetImporterPath,
+      "export-to-json",
+      "--spreadsheet-id",
+      spreadsheetId,
+      "--data-dir",
+      watchlistExportDir,
+      "--include-watchlist-json"
+    ],
+    {
+      cwd: repoRoot,
+      env
+    }
+  );
+
+  const watchlistPayload = await readJsonOrDefault(watchlistJsonPath, { locations: [] });
+  return normalizeWatchlist(watchlistPayload);
+}
+
+async function removeLocalWeatherSnapshots(repoRoot) {
+  for (const relativePath of LOCAL_SNAPSHOT_FILES) {
+    const targetPath = path.resolve(repoRoot, relativePath);
+    await fs.rm(targetPath, { force: true });
+  }
 }
 
 async function geocodeLocation(name) {
@@ -199,7 +231,6 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
 
   const repoRoot = process.cwd();
-  const watchlistPath = path.resolve(repoRoot, args.watchlist);
   const aibotScriptPath = path.resolve(repoRoot, args.aibotScript);
   const sheetImporterPath = path.resolve(repoRoot, "scripts/google-sheet-weather-db.mjs");
 
@@ -215,9 +246,30 @@ async function main() {
     throw new Error(`Google Sheet importer script not found: ${sheetImporterPath}`);
   }
 
-  const watchlistPayload = await readJsonOrDefault(watchlistPath, { locations: [] });
-  const watchlistNames = normalizeWatchlist(watchlistPayload);
-  console.log(`Loaded ${watchlistNames.length} watchlist locations from ${watchlistPath}`);
+  const env = {
+    ...process.env,
+    WEATHER_SITE_SYNC_ENABLED: process.env.WEATHER_SITE_SYNC_ENABLED || "1",
+    WEATHER_SITE_REPO_PATH: process.env.WEATHER_SITE_REPO_PATH || repoRoot,
+    WEATHER_SITE_DATA_SUBDIR: process.env.WEATHER_SITE_DATA_SUBDIR || "public/data",
+    WEATHER_SITE_GIT_REMOTE: process.env.WEATHER_SITE_GIT_REMOTE || "origin",
+    WEATHER_SITE_GIT_BRANCH: process.env.WEATHER_SITE_GIT_BRANCH || "main",
+    WEATHER_SITE_GIT_PUSH_ENABLED: process.env.WEATHER_SITE_GIT_PUSH_ENABLED || "1",
+    WEATHER_BENCHMARK_DATA_DIR:
+      process.env.WEATHER_BENCHMARK_DATA_DIR || path.join(repoRoot, ".weather-benchmark-data")
+  };
+
+  let watchlistNames = [];
+  if (args.spreadsheetId && existsSync(sheetImporterPath)) {
+    try {
+      watchlistNames = await loadWatchlistFromGoogleSheet(repoRoot, sheetImporterPath, args.spreadsheetId, env);
+      console.log(`Loaded ${watchlistNames.length} watchlist locations from Google Sheet.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : `${error}`;
+      console.log(`[warn] Unable to load watchlist from Google Sheet: ${message}`);
+    }
+  } else {
+    console.log("[warn] Spreadsheet id is missing; cannot load watchlist from Google Sheet.");
+  }
 
   let scriptToRun = aibotScriptPath;
 
@@ -238,20 +290,8 @@ async function main() {
       console.log("No watchlist entries could be geocoded. Falling back to AIBot default locations.");
     }
   } else {
-    console.log("Watchlist is empty. Falling back to AIBot default locations.");
+    console.log("Google Sheet watchlist is empty. Falling back to AIBot default locations.");
   }
-
-  const env = {
-    ...process.env,
-    WEATHER_SITE_SYNC_ENABLED: process.env.WEATHER_SITE_SYNC_ENABLED || "1",
-    WEATHER_SITE_REPO_PATH: process.env.WEATHER_SITE_REPO_PATH || repoRoot,
-    WEATHER_SITE_DATA_SUBDIR: process.env.WEATHER_SITE_DATA_SUBDIR || "public/data",
-    WEATHER_SITE_GIT_REMOTE: process.env.WEATHER_SITE_GIT_REMOTE || "origin",
-    WEATHER_SITE_GIT_BRANCH: process.env.WEATHER_SITE_GIT_BRANCH || "main",
-    WEATHER_SITE_GIT_PUSH_ENABLED: process.env.WEATHER_SITE_GIT_PUSH_ENABLED || "1",
-    WEATHER_BENCHMARK_DATA_DIR:
-      process.env.WEATHER_BENCHMARK_DATA_DIR || path.join(repoRoot, ".weather-benchmark-data")
-  };
 
   await runCommand("python3", [scriptToRun, "--mode", args.mode], {
     cwd: repoRoot,
@@ -264,6 +304,7 @@ async function main() {
       cwd: repoRoot,
       env
     });
+    await removeLocalWeatherSnapshots(repoRoot);
     console.log("Google Sheet direct write completed.");
   }
 }

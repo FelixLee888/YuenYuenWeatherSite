@@ -16,6 +16,7 @@ Primary storage is Google Sheets with tabular (column) storage, not raw JSON chu
   - `weather_latest_report_sources`
   - `weather_latest_report_zones`
   - `weather_latest_report_zone_sources`
+  - `weather_latest_report_next7`
   - `weather_latest_report_mwis_links`
   - `weather_benchmarks_latest`
   - `weather_benchmarks_latest_sources`
@@ -26,7 +27,8 @@ Primary storage is Google Sheets with tabular (column) storage, not raw JSON chu
   - `weather_history_recent_forecasts`
   - `weather_watchlist`
 
-`public/data/*.json` is treated as website snapshot/cache for runtime consumption and GitHub Pages deploy.
+Persistent weather storage is Google Sheets only. Local `public/data/weather_*.json` files are not source-of-truth and are removed after refresh runs.
+Watchlist source-of-truth is Google Sheet tab `weather_watchlist`.
 
 When running `server.js` with Google Sheets credentials configured, API reads come directly from Google Sheets tabular data, and `POST /api/weather/watchlist` writes updates directly to the `weather_watchlist` sheet tab.
 
@@ -57,14 +59,11 @@ Open:
 
 ## Google Sheet sync commands
 ```bash
-# Import current public/data JSON snapshots into Google Sheets
+# Import latest crawler JSON outputs into Google Sheets
 npm run sheet:import
 
-# Export from Google Sheets into public/data snapshots
-npm run sheet:export
-
-# Verify JSON snapshots match what is stored in Google Sheets
-npm run sheet:verify
+# Optional debug export (write to custom dir)
+node scripts/google-sheet-weather-db.mjs export-to-json --data-dir /tmp/yuen-sheet-debug --include-watchlist-json
 ```
 
 ## Daily automation
@@ -73,11 +72,11 @@ Workflows:
 - `.github/workflows/daily-weather-refresh.yml`
   - Runs every morning 8:00 (Europe/London)
   - Crawls weather via AIBot script
-  - Syncs JSON snapshots into Google Sheets DB
-  - Exports snapshots back from Google Sheets
-  - Pushes updated data to `main`
+  - Syncs refreshed weather snapshots directly into Google Sheets DB
+  - Manual run supports selecting AIBot ref (`aibot_ref`) for testing branch/tag updates
 - `.github/workflows/auto-deploy-gh-pages.yml`
   - Deploys site to GitHub Pages when `main` changes
+  - Also deploys after daily refresh completes (exports fresh Sheet snapshots to `public/data/` during deploy job)
 - `.github/workflows/migrate-weather-data-to-google-sheet.yml`
   - Manual one-time migration of existing JSON snapshots into Google Sheets
 
