@@ -622,7 +622,7 @@ function renderDetail(payload) {
   elements.benchmarkSource.textContent = formatValue(source);
   elements.benchmarkDelta.textContent = `Delta ${formatDelta(delta)}`;
 
-  renderNext7Forecast(history, location);
+  renderNext7Forecast(daily, history, location);
   renderSportRecommendations(daily?.suitability);
   renderBenchmarkSources(benchmark);
   renderMwisLinks(location, daily?.mwis_links);
@@ -741,14 +741,15 @@ function renderMwisLinks(location, links) {
   elements.mwisMeta.textContent = `${uniqueLinks.length} file${uniqueLinks.length > 1 ? "s" : ""}`;
 }
 
-function renderNext7Forecast(historyPayload, location) {
+function renderNext7Forecast(dailyPayload, historyPayload, location) {
   if (!elements.next7Grid || !elements.next7Meta) {
     return;
   }
 
   elements.next7Grid.innerHTML = "";
 
-  const forecastRows = buildNext7ForecastRows(historyPayload, location);
+  const fromDaily = normalizeDailyNext7ForecastRows(dailyPayload?.next_7_days, location);
+  const forecastRows = fromDaily.length ? fromDaily : buildNext7ForecastRows(historyPayload, location);
   if (!forecastRows.length) {
     const note = document.createElement("p");
     note.className = "muted";
@@ -765,6 +766,7 @@ function renderNext7Forecast(historyPayload, location) {
     const icon = pickDetailWeatherIcon(row.condition, `${row.date}T12:00:00`);
     const sourceCountText = `${row.sourceCount} src${row.sourceCount === 1 ? "" : "s"}`;
     const conditionText = row.condition ? shortText(row.condition, 92) : "Forecast summary not available.";
+    const windDirection = row.windDirection ? ` ${row.windDirection}` : "";
 
     card.innerHTML = `
       <div class="next7-card-head">
@@ -776,7 +778,8 @@ function renderNext7Forecast(historyPayload, location) {
         <p class="next7-temp">${escapeHtml(formatTemperature(row.temperature))}</p>
       </div>
       <p class="next7-range">L ${escapeHtml(formatTemperature(row.low))} • H ${escapeHtml(formatTemperature(row.high))}</p>
-      <p class="next7-wind">Wind ${escapeHtml(formatWind(row.wind))}</p>
+      <p class="next7-wind">Wind ${escapeHtml(formatWind(row.wind))}${escapeHtml(windDirection)}</p>
+      <p class="next7-rain">Rain ${escapeHtml(formatRainChance(row.rainChance))}</p>
       <p class="next7-condition">${escapeHtml(conditionText)}</p>
     `;
 
@@ -788,8 +791,69 @@ function renderNext7Forecast(historyPayload, location) {
   elements.next7Meta.textContent = `${forecastRows.length} days • latest model runs (~${averageSources.toFixed(1)} sources/day)`;
 }
 
+function normalizeDailyNext7ForecastRows(rows, location) {
+  if (!Array.isArray(rows) || !rows.length) {
+    return [];
+  }
+
+  return rows
+    .map((row) => {
+      const source = toObject(row) || {};
+      const date = normalizeDateKey(source.date || source.target_date || source.forecast_date);
+      if (!date) {
+        return null;
+      }
+
+      const temperature = toNumber(source.temperature) ?? averageValues(toNumber(source.temp_max), toNumber(source.temp_min));
+      const low = toNumber(source.temp_min) ?? toNumber(source.low);
+      const high = toNumber(source.temp_max) ?? toNumber(source.high);
+      const wind = toNumber(source.wind_kph) ?? toNumber(source.wind_max) ?? toNumber(source.wind);
+      const rainChance = normalizeRainfallChance(
+        source.rainfall_chance ?? source.rain_chance ?? source.precip_probability ?? source.precip_chance
+      );
+      const windDirection = normalizeWindDirection(
+        source.wind_direction ?? source.wind_dir ?? source.wind_bearing ?? source.wind_deg
+      );
+      const condition = cleanConditionForCard(location, source.condition || source.summary || source.description || "");
+      const sourceCount = toNumber(source.source_count) || toNumber(source.sourceCount) || 1;
+
+      return {
+        date,
+        temperature,
+        low,
+        high,
+        wind,
+        rainChance,
+        windDirection,
+        condition,
+        sourceCount: Number.isFinite(sourceCount) && sourceCount > 0 ? Math.round(sourceCount) : 1
+      };
+    })
+    .filter(Boolean);
+}
+
 function buildNext7ForecastRows(historyPayload, location) {
-  const rows = Array.isArray(historyPayload?.history) ? historyPayload.history : extractHistoryRows(historyPayload);
+  const source = toObject(historyPayload) || {};
+  const rowsFromHistory = Array.isArray(source.history) ? source.history : [];
+  const rowsFromForecasts = Array.isArray(source.forecasts)
+    ? source.forecasts
+        .filter((row) => normalizeLocation(row?.location) === normalizeLocation(location))
+        .map((row) => ({
+          kind: "forecast",
+          date: row?.target_date || row?.date || row?.forecast_date || null,
+          temp_min: row?.temp_min ?? null,
+          temp_max: row?.temp_max ?? null,
+          wind_max: row?.wind_max ?? null,
+          rainfall_chance: row?.rainfall_chance ?? row?.rain_chance ?? row?.precip_probability ?? null,
+          wind_direction: row?.wind_direction ?? row?.wind_dir ?? null,
+          condition: `Forecast (${row?.source_label || row?.source || "source"})`,
+          run_date: row?.run_date || null,
+          source: row?.source || null,
+          source_label: row?.source_label || null
+        }))
+    : [];
+
+  const rows = rowsFromHistory.length ? rowsFromHistory : (rowsFromForecasts.length ? rowsFromForecasts : extractHistoryRows(historyPayload));
   const groupedByDate = new Map();
 
   for (const row of rows) {
@@ -831,7 +895,9 @@ function buildNext7ForecastRows(historyPayload, location) {
 
   const todayKey = normalizeDateKey(new Date().toISOString());
   const upcomingDates = todayKey ? sortedDates.filter((dateKey) => dateKey >= todayKey) : sortedDates;
-  const selectedDates = (upcomingDates.length ? upcomingDates : sortedDates).slice(0, 7);
+  const selectedDates = upcomingDates.length
+    ? upcomingDates.slice(0, 7)
+    : sortedDates.slice(Math.max(0, sortedDates.length - 7));
 
   return selectedDates
     .map((dateKey) => summarizeNext7ForecastDate(dateKey, Array.from(groupedByDate.get(dateKey)?.values() || []), location))
@@ -847,6 +913,8 @@ function summarizeNext7ForecastDate(dateKey, entries, location) {
   const lows = [];
   const highs = [];
   const winds = [];
+  const rainChances = [];
+  const windDirections = [];
   const conditions = [];
 
   for (const entry of entries) {
@@ -859,6 +927,12 @@ function summarizeNext7ForecastDate(dateKey, entries, location) {
     const low = toNumber(row?.temp_min);
     const high = toNumber(row?.temp_max);
     const wind = toNumber(row?.wind_max);
+    const rainChance = normalizeRainfallChance(
+      row?.rainfall_chance ?? row?.rain_chance ?? row?.precip_probability ?? row?.precip_chance
+    );
+    const windDirection = normalizeWindDirection(
+      row?.wind_direction ?? row?.wind_dir ?? row?.wind_bearing ?? row?.wind_deg ?? row?.wind_degree
+    );
 
     if (Number.isFinite(temperature)) {
       temperatures.push(temperature);
@@ -872,6 +946,12 @@ function summarizeNext7ForecastDate(dateKey, entries, location) {
     if (Number.isFinite(wind)) {
       winds.push(wind);
     }
+    if (Number.isFinite(rainChance)) {
+      rainChances.push(rainChance);
+    }
+    if (windDirection) {
+      windDirections.push(windDirection);
+    }
 
     const rawCondition = `${row?.condition || row?.summary || row?.description || ""}`.trim();
     const cleanedCondition = cleanConditionForCard(location, rawCondition);
@@ -884,6 +964,7 @@ function summarizeNext7ForecastDate(dateKey, entries, location) {
   const lowTemperature = lows.length ? Math.min(...lows) : (temperatures.length ? Math.min(...temperatures) : null);
   const highTemperature = highs.length ? Math.max(...highs) : (temperatures.length ? Math.max(...temperatures) : null);
   const meanWind = averageList(winds);
+  const meanRainChance = averageList(rainChances);
 
   let condition = conditions[0] || "";
   if (!condition) {
@@ -902,6 +983,8 @@ function summarizeNext7ForecastDate(dateKey, entries, location) {
     low: lowTemperature,
     high: highTemperature,
     wind: meanWind,
+    rainChance: meanRainChance,
+    windDirection: mostCommonString(windDirections),
     condition,
     sourceCount: entries.length
   };
@@ -940,6 +1023,25 @@ function averageList(values) {
   }
 
   return finite.reduce((sum, value) => sum + value, 0) / finite.length;
+}
+
+function firstFiniteNumber(...values) {
+  for (const value of values) {
+    if (Number.isFinite(value)) {
+      return value;
+    }
+  }
+  return null;
+}
+
+function firstNonEmptyString(...values) {
+  for (const value of values) {
+    const text = `${value || ""}`.trim();
+    if (text) {
+      return text;
+    }
+  }
+  return null;
 }
 
 function setHistoryMetric(metric) {
@@ -1849,8 +1951,26 @@ function buildDailyDataStatic(report, history, location) {
     .sort((a, b) => `${b.run_date || ""}${b.target_date || ""}`.localeCompare(`${a.run_date || ""}${a.target_date || ""}`));
 
   const latestForecast = locationForecasts[0] || null;
+  const sourceForecastRows = Object.values(toObject(zone?.source_forecasts) || {});
   const tempMin = toNumber(zone?.ensemble?.temp_min) ?? toNumber(latestForecast?.temp_min);
   const tempMax = toNumber(zone?.ensemble?.temp_max) ?? toNumber(latestForecast?.temp_max);
+  const rainfallChance = firstFiniteNumber(
+    normalizeRainfallChance(zone?.ensemble?.rainfall_chance),
+    normalizeRainfallChance(zone?.rainfall_chance),
+    normalizeRainfallChance(latestForecast?.rainfall_chance),
+    normalizeRainfallChance(latestForecast?.rain_chance),
+    normalizeRainfallChance(latestForecast?.precip_probability),
+    averageList(sourceForecastRows.map((row) => normalizeRainfallChance(
+      row?.rainfall_chance ?? row?.rain_chance ?? row?.precip_probability
+    )))
+  );
+  const windDirection = firstNonEmptyString(
+    normalizeWindDirection(zone?.ensemble?.wind_direction),
+    normalizeWindDirection(zone?.wind_direction),
+    normalizeWindDirection(latestForecast?.wind_direction ?? latestForecast?.wind_dir),
+    mostCommonString(sourceForecastRows.map((row) => normalizeWindDirection(row?.wind_direction ?? row?.wind_dir)))
+  );
+  const next7Days = buildNext7ForecastRows(history, location);
 
   return {
     location,
@@ -1861,8 +1981,11 @@ function buildDailyDataStatic(report, history, location) {
     temp_max: tempMax,
     humidity: null,
     wind_kph: toNumber(zone?.ensemble?.wind_max) ?? toNumber(latestForecast?.wind_max),
+    rainfall_chance: rainfallChance,
+    wind_direction: windDirection,
     updated_at: report?.generated_at_utc || history?.generated_at_utc || null,
     forecast_date: report?.forecast_date || latestForecast?.target_date || null,
+    next_7_days: next7Days,
     mwis_links: resolveMwisLinksForLocation(report, location),
     suitability: zone?.suitability || null,
     source_forecasts: zone?.source_forecasts || null,
@@ -1923,6 +2046,8 @@ function buildHistoryDataStatic(history, location) {
       temp_max: toNumber(item.temp_max),
       temp_min: toNumber(item.temp_min),
       wind_max: toNumber(item.wind_max),
+      rainfall_chance: normalizeRainfallChance(item.rainfall_chance ?? item.rain_chance ?? item.precip_probability),
+      wind_direction: normalizeWindDirection(item.wind_direction ?? item.wind_dir),
       condition: buildActualConditionStatic(item)
     }));
 
@@ -1937,6 +2062,8 @@ function buildHistoryDataStatic(history, location) {
       temp_max: toNumber(item.temp_max),
       temp_min: toNumber(item.temp_min),
       wind_max: toNumber(item.wind_max),
+      rainfall_chance: normalizeRainfallChance(item.rainfall_chance ?? item.rain_chance ?? item.precip_probability),
+      wind_direction: normalizeWindDirection(item.wind_direction ?? item.wind_dir),
       condition: `Forecast (${item.source_label || item.source || "source"})`,
       run_date: item.run_date || null,
       source: item.source || null,
@@ -2057,13 +2184,19 @@ function buildActualConditionStatic(item) {
   const min = toNumber(item?.temp_min);
   const max = toNumber(item?.temp_max);
   const wind = toNumber(item?.wind_max);
+  const rainChance = normalizeRainfallChance(item?.rainfall_chance ?? item?.rain_chance ?? item?.precip_probability);
+  const windDirection = normalizeWindDirection(item?.wind_direction ?? item?.wind_dir);
 
   if (min !== null && max !== null) {
     pieces.push(`Min ${min.toFixed(1)} C / Max ${max.toFixed(1)} C`);
   }
 
   if (wind !== null) {
-    pieces.push(`Wind ${wind.toFixed(1)} km/h`);
+    pieces.push(`Wind ${wind.toFixed(1)} km/h${windDirection ? ` ${windDirection}` : ""}`);
+  }
+
+  if (rainChance !== null) {
+    pieces.push(`Rain ${rainChance.toFixed(0)}%`);
   }
 
   return pieces.join(" | ") || "Observed weather";
@@ -2292,6 +2425,16 @@ function formatWind(value) {
   return `${numeric.toFixed(1)} km/h`;
 }
 
+function formatRainChance(value) {
+  const numeric = toNumber(value);
+  if (numeric === null) {
+    return formatValue(value);
+  }
+
+  const normalized = numeric <= 1 ? numeric * 100 : numeric;
+  return `${Math.max(0, Math.min(100, normalized)).toFixed(0)}%`;
+}
+
 function formatScore(value) {
   const numeric = toNumber(value);
   if (numeric === null) {
@@ -2389,6 +2532,73 @@ function normalizeDateKey(value) {
   }
 
   return parsed.toISOString().slice(0, 10);
+}
+
+function normalizeRainfallChance(value) {
+  const numeric = toNumber(value);
+  if (numeric === null || numeric < 0) {
+    return null;
+  }
+
+  const normalized = numeric <= 1 ? numeric * 100 : numeric;
+  return Math.max(0, Math.min(100, normalized));
+}
+
+function normalizeWindDirection(value) {
+  const numeric = toNumber(value);
+  if (numeric !== null) {
+    return degreesToCompass(numeric);
+  }
+
+  const text = `${value || ""}`.trim();
+  if (!text) {
+    return null;
+  }
+
+  const upper = text.toUpperCase();
+  if (/^\d+(\.\d+)?$/.test(upper)) {
+    return degreesToCompass(Number.parseFloat(upper));
+  }
+
+  return upper;
+}
+
+function degreesToCompass(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return null;
+  }
+
+  const normalized = ((numeric % 360) + 360) % 360;
+  const directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+  const index = Math.round(normalized / 22.5) % directions.length;
+  return directions[index];
+}
+
+function mostCommonString(values) {
+  if (!Array.isArray(values) || !values.length) {
+    return null;
+  }
+
+  const counts = new Map();
+  for (const value of values) {
+    const text = `${value || ""}`.trim();
+    if (!text) {
+      continue;
+    }
+    counts.set(text, (counts.get(text) || 0) + 1);
+  }
+
+  let topValue = null;
+  let topCount = 0;
+  for (const [value, count] of counts.entries()) {
+    if (count > topCount) {
+      topValue = value;
+      topCount = count;
+    }
+  }
+
+  return topValue;
 }
 
 function normalizeLocation(value) {

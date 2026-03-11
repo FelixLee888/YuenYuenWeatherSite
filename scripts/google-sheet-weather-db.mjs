@@ -47,6 +47,8 @@ const TABLE_DEFS = {
       { name: "ensemble_temp_min", type: "nullable_number" },
       { name: "ensemble_temp_max", type: "nullable_number" },
       { name: "ensemble_wind_max", type: "nullable_number" },
+      { name: "ensemble_rainfall_chance", type: "nullable_number" },
+      { name: "ensemble_wind_direction", type: "nullable_string" },
       { name: "ensemble_spread_temp", type: "nullable_number" },
       { name: "ensemble_spread_wind", type: "nullable_number" },
       { name: "briefing", type: "string" },
@@ -65,7 +67,9 @@ const TABLE_DEFS = {
       { name: "source_label", type: "string" },
       { name: "temp_min", type: "nullable_number" },
       { name: "temp_max", type: "nullable_number" },
-      { name: "wind_max", type: "nullable_number" }
+      { name: "wind_max", type: "nullable_number" },
+      { name: "rainfall_chance", type: "nullable_number" },
+      { name: "wind_direction", type: "nullable_string" }
     ]
   },
   latest_mwis_links: {
@@ -154,7 +158,9 @@ const TABLE_DEFS = {
       { name: "lon", type: "nullable_number" },
       { name: "temp_max", type: "nullable_number" },
       { name: "temp_min", type: "nullable_number" },
-      { name: "wind_max", type: "nullable_number" }
+      { name: "wind_max", type: "nullable_number" },
+      { name: "rainfall_chance", type: "nullable_number" },
+      { name: "wind_direction", type: "nullable_string" }
     ]
   },
   history_forecasts: {
@@ -168,7 +174,9 @@ const TABLE_DEFS = {
       { name: "location", type: "string" },
       { name: "temp_max", type: "nullable_number" },
       { name: "temp_min", type: "nullable_number" },
-      { name: "wind_max", type: "nullable_number" }
+      { name: "wind_max", type: "nullable_number" },
+      { name: "rainfall_chance", type: "nullable_number" },
+      { name: "wind_direction", type: "nullable_string" }
     ]
   },
   watchlist: {
@@ -571,6 +579,8 @@ function latestJsonToTables(latest) {
       ensemble_temp_min: ensemble.temp_min ?? null,
       ensemble_temp_max: ensemble.temp_max ?? null,
       ensemble_wind_max: ensemble.wind_max ?? null,
+      ensemble_rainfall_chance: ensemble.rainfall_chance ?? null,
+      ensemble_wind_direction: `${ensemble.wind_direction ?? ""}`,
       ensemble_spread_temp: ensemble.spread_temp ?? null,
       ensemble_spread_wind: ensemble.spread_wind ?? null,
       briefing: `${zone.briefing ?? ""}`,
@@ -591,7 +601,9 @@ function latestJsonToTables(latest) {
         source_label: `${metrics.source_label ?? source}`,
         temp_min: metrics.temp_min ?? null,
         temp_max: metrics.temp_max ?? null,
-        wind_max: metrics.wind_max ?? null
+        wind_max: metrics.wind_max ?? null,
+        rainfall_chance: metrics.rainfall_chance ?? null,
+        wind_direction: `${metrics.wind_direction ?? ""}`
       });
       sourceOrder += 1;
     }
@@ -717,7 +729,9 @@ function historyJsonToTables(history) {
       lon: row.lon ?? null,
       temp_max: row.temp_max ?? null,
       temp_min: row.temp_min ?? null,
-      wind_max: row.wind_max ?? null
+      wind_max: row.wind_max ?? null,
+      rainfall_chance: row.rainfall_chance ?? row.rain_chance ?? row.precip_probability ?? null,
+      wind_direction: `${row.wind_direction ?? row.wind_dir ?? ""}`
     });
   }
 
@@ -734,7 +748,9 @@ function historyJsonToTables(history) {
       location: `${row.location ?? ""}`,
       temp_max: row.temp_max ?? null,
       temp_min: row.temp_min ?? null,
-      wind_max: row.wind_max ?? null
+      wind_max: row.wind_max ?? null,
+      rainfall_chance: row.rainfall_chance ?? row.rain_chance ?? row.precip_probability ?? null,
+      wind_direction: `${row.wind_direction ?? row.wind_dir ?? ""}`
     });
   }
 
@@ -810,6 +826,10 @@ function latestTablesToJson(tables) {
         temp_min: row.ensemble_temp_min ?? null,
         temp_max: row.ensemble_temp_max ?? null,
         wind_max: row.ensemble_wind_max ?? null,
+        ...(row.ensemble_rainfall_chance !== null && row.ensemble_rainfall_chance !== undefined
+          ? { rainfall_chance: row.ensemble_rainfall_chance }
+          : {}),
+        ...(`${row.ensemble_wind_direction || ""}`.trim() ? { wind_direction: `${row.ensemble_wind_direction}`.trim() } : {}),
         spread_temp: row.ensemble_spread_temp ?? null,
         spread_wind: row.ensemble_spread_wind ?? null
       },
@@ -838,6 +858,8 @@ function latestTablesToJson(tables) {
           temp_min: null,
           temp_max: null,
           wind_max: null,
+          rainfall_chance: null,
+          wind_direction: null,
           spread_temp: null,
           spread_wind: null
         },
@@ -860,7 +882,9 @@ function latestTablesToJson(tables) {
       source_label: `${row.source_label || source}`,
       temp_min: row.temp_min ?? null,
       temp_max: row.temp_max ?? null,
-      wind_max: row.wind_max ?? null
+      wind_max: row.wind_max ?? null,
+      ...(row.rainfall_chance !== null && row.rainfall_chance !== undefined ? { rainfall_chance: row.rainfall_chance } : {}),
+      ...(`${row.wind_direction || ""}`.trim() ? { wind_direction: `${row.wind_direction}`.trim() } : {})
     };
   }
 
@@ -949,7 +973,9 @@ function historyTablesToJson(tables) {
     lon: row.lon ?? null,
     temp_max: row.temp_max ?? null,
     temp_min: row.temp_min ?? null,
-    wind_max: row.wind_max ?? null
+    wind_max: row.wind_max ?? null,
+    ...(row.rainfall_chance !== null && row.rainfall_chance !== undefined ? { rainfall_chance: row.rainfall_chance } : {}),
+    ...(`${row.wind_direction || ""}`.trim() ? { wind_direction: `${row.wind_direction}`.trim() } : {})
   }));
 
   const forecasts = sortRows(tables.history_forecasts || [], "row_order").map((row) => ({
@@ -960,7 +986,9 @@ function historyTablesToJson(tables) {
     location: `${row.location || ""}`,
     temp_max: row.temp_max ?? null,
     temp_min: row.temp_min ?? null,
-    wind_max: row.wind_max ?? null
+    wind_max: row.wind_max ?? null,
+    ...(row.rainfall_chance !== null && row.rainfall_chance !== undefined ? { rainfall_chance: row.rainfall_chance } : {}),
+    ...(`${row.wind_direction || ""}`.trim() ? { wind_direction: `${row.wind_direction}`.trim() } : {})
   }));
 
   return {

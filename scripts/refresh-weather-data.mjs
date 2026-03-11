@@ -12,7 +12,12 @@ function parseArgs(argv) {
   const args = {
     mode: process.env.WEATHER_BRIEFING_MODE || "full",
     watchlist: process.env.WATCHLIST_PATH || "public/data/weather_watchlist.json",
-    aibotScript: process.env.AIBOT_SCRIPT_PATH || "aibot/scripts/weather_mountains_briefing.py"
+    aibotScript: process.env.AIBOT_SCRIPT_PATH || "aibot/scripts/weather_mountains_briefing.py",
+    sheetDirectWrite: (process.env.WEATHER_GOOGLE_SHEET_DIRECT_WRITE || "0").trim() === "1",
+    spreadsheetId:
+      process.env.WEATHER_GOOGLE_SHEET_ID ||
+      process.env.GOOGLE_SHEETS_SPREADSHEET_ID ||
+      ""
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -34,6 +39,17 @@ function parseArgs(argv) {
     if (arg === "--aibot-script" && next) {
       args.aibotScript = next;
       index += 1;
+      continue;
+    }
+
+    if (arg === "--spreadsheet-id" && next) {
+      args.spreadsheetId = next;
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--sheet-direct-write") {
+      args.sheetDirectWrite = true;
       continue;
     }
   }
@@ -185,9 +201,18 @@ async function main() {
   const repoRoot = process.cwd();
   const watchlistPath = path.resolve(repoRoot, args.watchlist);
   const aibotScriptPath = path.resolve(repoRoot, args.aibotScript);
+  const sheetImporterPath = path.resolve(repoRoot, "scripts/google-sheet-weather-db.mjs");
 
   if (!existsSync(aibotScriptPath)) {
     throw new Error(`AIBot script not found: ${aibotScriptPath}`);
+  }
+
+  if (args.sheetDirectWrite && !args.spreadsheetId) {
+    throw new Error("Sheet direct write is enabled, but spreadsheet id is missing. Set WEATHER_GOOGLE_SHEET_ID or pass --spreadsheet-id.");
+  }
+
+  if (args.sheetDirectWrite && !existsSync(sheetImporterPath)) {
+    throw new Error(`Google Sheet importer script not found: ${sheetImporterPath}`);
   }
 
   const watchlistPayload = await readJsonOrDefault(watchlistPath, { locations: [] });
@@ -232,6 +257,15 @@ async function main() {
     cwd: repoRoot,
     env
   });
+
+  if (args.sheetDirectWrite) {
+    console.log(`Syncing refreshed weather snapshots directly to Google Sheet ${args.spreadsheetId}...`);
+    await runCommand("node", [sheetImporterPath, "import-from-json", "--spreadsheet-id", args.spreadsheetId], {
+      cwd: repoRoot,
+      env
+    });
+    console.log("Google Sheet direct write completed.");
+  }
 }
 
 main().catch((error) => {

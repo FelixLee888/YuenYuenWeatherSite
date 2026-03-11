@@ -88,7 +88,7 @@ jobs:
             exit 1
           fi
 
-      - name: Crawl and refresh weather data from watchlist
+      - name: Crawl weather, refresh snapshots, and write to Google Sheet
         if: steps.gate.outputs.run == 'true'
         run: |
           node scripts/refresh-weather-data.mjs --mode full
@@ -102,12 +102,8 @@ jobs:
           WEATHER_SITE_SYNC_ENABLED: '1'
           WEATHER_SITE_GIT_PUSH_ENABLED: '0'
           WEATHER_BENCHMARK_DATA_DIR: ${{ github.workspace }}/.weather-benchmark-data
-
-      - name: Sync JSON snapshots into Google Sheet DB
-        if: steps.gate.outputs.run == 'true'
-        run: |
-          node scripts/google-sheet-weather-db.mjs import-from-json --spreadsheet-id 1g9_1I1xyt7iO922yNXckPswnqV5ATIzLo3NQ6IJ4O5k
-        env:
+          WEATHER_GOOGLE_SHEET_DIRECT_WRITE: '1'
+          WEATHER_GOOGLE_SHEET_ID: 1g9_1I1xyt7iO922yNXckPswnqV5ATIzLo3NQ6IJ4O5k
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
 
       - name: Export snapshots from Google Sheet DB

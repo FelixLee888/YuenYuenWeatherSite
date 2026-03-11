@@ -63,6 +63,8 @@ const SHEET_TABLE_DEFS = {
       { name: "ensemble_temp_min", type: "nullable_number" },
       { name: "ensemble_temp_max", type: "nullable_number" },
       { name: "ensemble_wind_max", type: "nullable_number" },
+      { name: "ensemble_rainfall_chance", type: "nullable_number" },
+      { name: "ensemble_wind_direction", type: "nullable_string" },
       { name: "ensemble_spread_temp", type: "nullable_number" },
       { name: "ensemble_spread_wind", type: "nullable_number" },
       { name: "briefing", type: "string" },
@@ -81,7 +83,9 @@ const SHEET_TABLE_DEFS = {
       { name: "source_label", type: "string" },
       { name: "temp_min", type: "nullable_number" },
       { name: "temp_max", type: "nullable_number" },
-      { name: "wind_max", type: "nullable_number" }
+      { name: "wind_max", type: "nullable_number" },
+      { name: "rainfall_chance", type: "nullable_number" },
+      { name: "wind_direction", type: "nullable_string" }
     ]
   },
   latest_mwis_links: {
@@ -170,7 +174,9 @@ const SHEET_TABLE_DEFS = {
       { name: "lon", type: "nullable_number" },
       { name: "temp_max", type: "nullable_number" },
       { name: "temp_min", type: "nullable_number" },
-      { name: "wind_max", type: "nullable_number" }
+      { name: "wind_max", type: "nullable_number" },
+      { name: "rainfall_chance", type: "nullable_number" },
+      { name: "wind_direction", type: "nullable_string" }
     ]
   },
   history_forecasts: {
@@ -184,7 +190,9 @@ const SHEET_TABLE_DEFS = {
       { name: "location", type: "string" },
       { name: "temp_max", type: "nullable_number" },
       { name: "temp_min", type: "nullable_number" },
-      { name: "wind_max", type: "nullable_number" }
+      { name: "wind_max", type: "nullable_number" },
+      { name: "rainfall_chance", type: "nullable_number" },
+      { name: "wind_direction", type: "nullable_string" }
     ]
   },
   watchlist: {
@@ -852,6 +860,8 @@ function latestTablesToJson(tables) {
         temp_min: row?.ensemble_temp_min ?? null,
         temp_max: row?.ensemble_temp_max ?? null,
         wind_max: row?.ensemble_wind_max ?? null,
+        rainfall_chance: row?.ensemble_rainfall_chance ?? null,
+        wind_direction: row?.ensemble_wind_direction ?? null,
         spread_temp: row?.ensemble_spread_temp ?? null,
         spread_wind: row?.ensemble_spread_wind ?? null
       },
@@ -880,6 +890,8 @@ function latestTablesToJson(tables) {
           temp_min: null,
           temp_max: null,
           wind_max: null,
+          rainfall_chance: null,
+          wind_direction: null,
           spread_temp: null,
           spread_wind: null
         },
@@ -898,7 +910,9 @@ function latestTablesToJson(tables) {
       source_label: `${row?.source_label || source}`,
       temp_min: row?.temp_min ?? null,
       temp_max: row?.temp_max ?? null,
-      wind_max: row?.wind_max ?? null
+      wind_max: row?.wind_max ?? null,
+      rainfall_chance: row?.rainfall_chance ?? null,
+      wind_direction: row?.wind_direction ?? null
     };
   }
 
@@ -985,7 +999,9 @@ function historyTablesToJson(tables) {
     lon: row?.lon ?? null,
     temp_max: row?.temp_max ?? null,
     temp_min: row?.temp_min ?? null,
-    wind_max: row?.wind_max ?? null
+    wind_max: row?.wind_max ?? null,
+    rainfall_chance: row?.rainfall_chance ?? null,
+    wind_direction: row?.wind_direction ?? null
   }));
 
   const forecasts = sortRowsByKeys(tables.history_forecasts || [], "row_order").map((row) => ({
@@ -996,7 +1012,9 @@ function historyTablesToJson(tables) {
     location: `${row?.location || ""}`,
     temp_max: row?.temp_max ?? null,
     temp_min: row?.temp_min ?? null,
-    wind_max: row?.wind_max ?? null
+    wind_max: row?.wind_max ?? null,
+    rainfall_chance: row?.rainfall_chance ?? null,
+    wind_direction: row?.wind_direction ?? null
   }));
 
   return {
@@ -1143,10 +1161,27 @@ function buildDailyData(report, history, location) {
     });
 
   const latestForecast = locationForecasts[0] || null;
+  const sourceForecastRows = Object.values(toObject(zone?.source_forecasts) || {});
 
   const tempMin = toNumber(zone?.ensemble?.temp_min) ?? toNumber(latestForecast?.temp_min);
   const tempMax = toNumber(zone?.ensemble?.temp_max) ?? toNumber(latestForecast?.temp_max);
   const temperature = averageValues(tempMin, tempMax);
+  const rainfallChance = firstFiniteNumber(
+    normalizeRainfallChance(zone?.ensemble?.rainfall_chance),
+    normalizeRainfallChance(zone?.rainfall_chance),
+    normalizeRainfallChance(latestForecast?.rainfall_chance),
+    normalizeRainfallChance(latestForecast?.rain_chance),
+    normalizeRainfallChance(latestForecast?.precip_probability),
+    normalizeRainfallChance(latestForecast?.precip_chance),
+    averageNumberList(sourceForecastRows.map((row) => normalizeRainfallChance(pickRainfallChanceFromRecord(row))))
+  );
+  const windDirection = firstNonEmptyString(
+    normalizeWindDirection(zone?.ensemble?.wind_direction),
+    normalizeWindDirection(zone?.wind_direction),
+    normalizeWindDirection(pickWindDirectionFromRecord(latestForecast)),
+    mostCommonString(sourceForecastRows.map((row) => normalizeWindDirection(pickWindDirectionFromRecord(row))))
+  );
+  const next7Days = buildNext7ForecastRowsFromHistory(history, location);
 
   return {
     location,
@@ -1157,8 +1192,11 @@ function buildDailyData(report, history, location) {
     temp_max: tempMax,
     humidity: null,
     wind_kph: toNumber(zone?.ensemble?.wind_max) ?? toNumber(latestForecast?.wind_max),
+    rainfall_chance: rainfallChance,
+    wind_direction: windDirection,
     updated_at: report?.generated_at_utc || history?.generated_at_utc || null,
     forecast_date: report?.forecast_date || latestForecast?.target_date || null,
+    next_7_days: next7Days,
     mwis_links: resolveMwisLinksForLocation(report, location),
     suitability: zone?.suitability || null,
     source_forecasts: zone?.source_forecasts || null,
@@ -1222,6 +1260,8 @@ function buildHistoryData(history, location) {
       temp_max: toNumber(item.temp_max),
       temp_min: toNumber(item.temp_min),
       wind_max: toNumber(item.wind_max),
+      rainfall_chance: normalizeRainfallChance(pickRainfallChanceFromRecord(item)),
+      wind_direction: normalizeWindDirection(pickWindDirectionFromRecord(item)),
       condition: buildActualCondition(item)
     }));
 
@@ -1240,6 +1280,8 @@ function buildHistoryData(history, location) {
       temp_max: toNumber(item.temp_max),
       temp_min: toNumber(item.temp_min),
       wind_max: toNumber(item.wind_max),
+      rainfall_chance: normalizeRainfallChance(pickRainfallChanceFromRecord(item)),
+      wind_direction: normalizeWindDirection(pickWindDirectionFromRecord(item)),
       condition: `Forecast (${item.source_label || item.source || "source"})`,
       run_date: item.run_date || null,
       source: item.source || null,
@@ -1412,13 +1454,19 @@ function buildActualCondition(item) {
   const min = toNumber(item?.temp_min);
   const max = toNumber(item?.temp_max);
   const wind = toNumber(item?.wind_max);
+  const rainChance = normalizeRainfallChance(pickRainfallChanceFromRecord(item));
+  const windDirection = normalizeWindDirection(pickWindDirectionFromRecord(item));
 
   if (min !== null && max !== null) {
     pieces.push(`Min ${min.toFixed(1)} C / Max ${max.toFixed(1)} C`);
   }
 
   if (wind !== null) {
-    pieces.push(`Wind ${wind.toFixed(1)} km/h`);
+    pieces.push(`Wind ${wind.toFixed(1)} km/h${windDirection ? ` ${windDirection}` : ""}`);
+  }
+
+  if (rainChance !== null) {
+    pieces.push(`Rain ${rainChance.toFixed(0)}%`);
   }
 
   return pieces.join(" | ") || "Observed weather";
@@ -1470,6 +1518,280 @@ function averageValues(a, b) {
   }
 
   return null;
+}
+
+function averageNumberList(values) {
+  if (!Array.isArray(values) || !values.length) {
+    return null;
+  }
+
+  const finite = values.filter((value) => Number.isFinite(value));
+  if (!finite.length) {
+    return null;
+  }
+
+  return finite.reduce((sum, value) => sum + value, 0) / finite.length;
+}
+
+function firstFiniteNumber(...values) {
+  for (const value of values) {
+    if (Number.isFinite(value)) {
+      return value;
+    }
+  }
+  return null;
+}
+
+function firstNonEmptyString(...values) {
+  for (const value of values) {
+    const text = `${value || ""}`.trim();
+    if (text) {
+      return text;
+    }
+  }
+  return null;
+}
+
+function mostCommonString(values) {
+  if (!Array.isArray(values) || !values.length) {
+    return null;
+  }
+
+  const counts = new Map();
+  for (const value of values) {
+    const text = `${value || ""}`.trim();
+    if (!text) {
+      continue;
+    }
+    counts.set(text, (counts.get(text) || 0) + 1);
+  }
+
+  let best = null;
+  let bestCount = 0;
+  for (const [value, count] of counts.entries()) {
+    if (count > bestCount) {
+      best = value;
+      bestCount = count;
+    }
+  }
+
+  return best;
+}
+
+function normalizeDateKey(value) {
+  const raw = `${value || ""}`.trim();
+  if (!raw) {
+    return "";
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw;
+  }
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+
+  return parsed.toISOString().slice(0, 10);
+}
+
+function normalizeRainfallChance(value) {
+  const numeric = toNumber(value);
+  if (!Number.isFinite(numeric)) {
+    return null;
+  }
+
+  if (numeric < 0) {
+    return null;
+  }
+
+  const pct = numeric <= 1 ? numeric * 100 : numeric;
+  return Math.min(100, Math.max(0, pct));
+}
+
+function normalizeWindDirection(value) {
+  const numeric = toNumber(value);
+  if (Number.isFinite(numeric)) {
+    return degreesToCardinalDirection(numeric);
+  }
+
+  const text = `${value || ""}`.trim();
+  if (!text) {
+    return null;
+  }
+
+  const upper = text.toUpperCase();
+  if (/^\d+(\.\d+)?$/.test(upper)) {
+    return degreesToCardinalDirection(Number(upper));
+  }
+
+  return upper;
+}
+
+function degreesToCardinalDirection(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return null;
+  }
+
+  const normalized = ((numeric % 360) + 360) % 360;
+  const directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+  const index = Math.round(normalized / 22.5) % directions.length;
+  return directions[index];
+}
+
+function pickRainfallChanceFromRecord(record) {
+  const source = toObject(record) || {};
+  return firstFiniteNumber(
+    normalizeRainfallChance(source.rainfall_chance),
+    normalizeRainfallChance(source.rain_chance),
+    normalizeRainfallChance(source.precip_probability),
+    normalizeRainfallChance(source.precip_chance),
+    normalizeRainfallChance(source.chance_of_rain),
+    normalizeRainfallChance(source.pop)
+  );
+}
+
+function pickWindDirectionFromRecord(record) {
+  const source = toObject(record) || {};
+  return firstNonEmptyString(
+    normalizeWindDirection(source.wind_direction),
+    normalizeWindDirection(source.wind_dir),
+    normalizeWindDirection(source.wind_bearing),
+    normalizeWindDirection(source.wind_deg),
+    normalizeWindDirection(source.wind_degree)
+  );
+}
+
+function resolveForecastRunRank(record) {
+  const source = toObject(record) || {};
+  const candidates = [source.run_date, source.updated_at, source.generated_at_utc, source.timestamp];
+  for (const value of candidates) {
+    const raw = `${value || ""}`.trim();
+    if (!raw) {
+      continue;
+    }
+
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.getTime();
+    }
+  }
+
+  return 0;
+}
+
+function buildNext7ForecastRowsFromHistory(history, location) {
+  const forecasts = Array.isArray(history?.forecasts) ? history.forecasts : [];
+  const normalizedLocation = normalizeLocation(location);
+  const groupedByDate = new Map();
+
+  for (const row of forecasts) {
+    if (normalizeLocation(row?.location) !== normalizedLocation) {
+      continue;
+    }
+
+    const dateKey = normalizeDateKey(row?.target_date || row?.date || row?.forecast_date);
+    if (!dateKey) {
+      continue;
+    }
+
+    let sourceKey = normalizeLocation(row?.source_label || row?.source || "");
+    if (!sourceKey) {
+      sourceKey = "forecast-default";
+    }
+
+    if (!groupedByDate.has(dateKey)) {
+      groupedByDate.set(dateKey, new Map());
+    }
+
+    const sourceMap = groupedByDate.get(dateKey);
+    const runRank = resolveForecastRunRank(row);
+    const existing = sourceMap.get(sourceKey);
+    if (!existing || runRank > existing.runRank) {
+      sourceMap.set(sourceKey, { row, runRank });
+    }
+  }
+
+  const sortedDates = Array.from(groupedByDate.keys()).sort((a, b) => a.localeCompare(b));
+  if (!sortedDates.length) {
+    return [];
+  }
+
+  const todayKey = normalizeDateKey(new Date().toISOString());
+  const upcomingDates = todayKey ? sortedDates.filter((dateKey) => dateKey >= todayKey) : sortedDates;
+  const selectedDates = upcomingDates.length
+    ? upcomingDates.slice(0, 7)
+    : sortedDates.slice(Math.max(0, sortedDates.length - 7));
+
+  return selectedDates
+    .map((dateKey) => summarizeNext7ForecastDate(dateKey, Array.from(groupedByDate.get(dateKey)?.values() || []), location))
+    .filter(Boolean);
+}
+
+function summarizeNext7ForecastDate(dateKey, entries, location) {
+  if (!entries.length) {
+    return null;
+  }
+
+  const temperatures = [];
+  const lows = [];
+  const highs = [];
+  const winds = [];
+  const rainChances = [];
+  const windDirections = [];
+  const conditions = [];
+
+  for (const entry of entries) {
+    const row = toObject(entry?.row) || {};
+    const temperature = averageValues(toNumber(row.temp_max), toNumber(row.temp_min));
+    if (Number.isFinite(temperature)) {
+      temperatures.push(temperature);
+    }
+
+    const low = toNumber(row.temp_min);
+    if (Number.isFinite(low)) {
+      lows.push(low);
+    }
+
+    const high = toNumber(row.temp_max);
+    if (Number.isFinite(high)) {
+      highs.push(high);
+    }
+
+    const wind = toNumber(row.wind_max);
+    if (Number.isFinite(wind)) {
+      winds.push(wind);
+    }
+
+    const rainChance = pickRainfallChanceFromRecord(row);
+    if (Number.isFinite(rainChance)) {
+      rainChances.push(rainChance);
+    }
+
+    const windDirection = pickWindDirectionFromRecord(row);
+    if (windDirection) {
+      windDirections.push(windDirection);
+    }
+
+    const rawCondition = `${row.condition || row.summary || row.description || ""}`.trim();
+    if (rawCondition && !/^forecast\b/i.test(rawCondition.toLowerCase())) {
+      conditions.push(rawCondition);
+    }
+  }
+
+  return {
+    date: dateKey,
+    temperature: averageNumberList(temperatures),
+    temp_min: lows.length ? Math.min(...lows) : null,
+    temp_max: highs.length ? Math.max(...highs) : null,
+    wind_kph: averageNumberList(winds),
+    wind_direction: mostCommonString(windDirections),
+    rainfall_chance: averageNumberList(rainChances),
+    condition: conditions[0] || `Forecast snapshot for ${location}.`,
+    source_count: entries.length
+  };
 }
 
 async function loadCustomWatchlistFromJson() {

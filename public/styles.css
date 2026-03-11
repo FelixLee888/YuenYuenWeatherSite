@@ -620,6 +620,7 @@ main {
 
 .next7-range,
 .next7-wind,
+.next7-rain,
 .next7-condition {
   margin: 0;
   font-size: 0.69rem;
@@ -1070,6 +1071,7 @@ main {
 
   .next7-range,
   .next7-wind,
+  .next7-rain,
   .next7-condition {
     font-size: 0.64rem;
     line-height: 1.26;
