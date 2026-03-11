@@ -28,6 +28,8 @@ Primary storage is Google Sheets with tabular (column) storage, not raw JSON chu
 
 `public/data/*.json` is treated as website snapshot/cache for runtime consumption and GitHub Pages deploy.
 
+When running `server.js` with Google Sheets credentials configured, API reads come directly from Google Sheets tabular data, and `POST /api/weather/watchlist` writes updates directly to the `weather_watchlist` sheet tab.
+
 ## Environment
 Copy `.env.example` to `.env` and set credentials if you run Sheet sync locally.
 
@@ -35,6 +37,7 @@ Required for Sheet sync:
 
 - `GOOGLE_SHEETS_SPREADSHEET_ID`
 - `GOOGLE_SERVICE_ACCOUNT_JSON`
+- `GOOGLE_SHEETS_ENABLED=1`
 
 Alternative credentials:
 

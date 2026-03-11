@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { existsSync, readFileSync } from "node:fs";
 import { readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { createSign } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -14,6 +15,181 @@ const DATA_DIR = path.join(PUBLIC_DIR, "data");
 const PORT = Number(process.env.PORT || 4173);
 const AIBOT_WATCHLIST_SYNC_URL = (process.env.AIBOT_WATCHLIST_SYNC_URL || "").trim();
 const AIBOT_SYNC_TIMEOUT_MS = Number(process.env.AIBOT_SYNC_TIMEOUT_MS || 5000);
+const GOOGLE_SHEETS_SPREADSHEET_ID = (process.env.GOOGLE_SHEETS_SPREADSHEET_ID || "").trim();
+const GOOGLE_SHEETS_ENABLED = (process.env.GOOGLE_SHEETS_ENABLED || "1").trim() !== "0";
+const GOOGLE_OAUTH_ACCESS_TOKEN = (process.env.GOOGLE_OAUTH_ACCESS_TOKEN || "").trim();
+const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const GOOGLE_SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
+const googleTokenCache = {
+  accessToken: "",
+  expiresAtMs: 0
+};
+
+const SOURCE_BUCKETS = ["configured", "available", "used_for_report", "missing_api_keys", "skipped_errors"];
+
+const SHEET_TABLE_DEFS = {
+  latest_meta: {
+    tab: "weather_latest_report",
+    columns: [
+      { name: "generated_at_utc", type: "nullable_string" },
+      { name: "mode", type: "string" },
+      { name: "run_date", type: "string" },
+      { name: "forecast_date", type: "string" },
+      { name: "eval_date", type: "string" },
+      { name: "lookback_days", type: "nullable_integer" }
+    ]
+  },
+  latest_sources: {
+    tab: "weather_latest_report_sources",
+    columns: [
+      { name: "bucket", type: "string" },
+      { name: "item_order", type: "integer" },
+      { name: "source", type: "string" }
+    ]
+  },
+  latest_zones: {
+    tab: "weather_latest_report_zones",
+    columns: [
+      { name: "zone_order", type: "integer" },
+      { name: "name", type: "string" },
+      { name: "lat", type: "nullable_number" },
+      { name: "lon", type: "nullable_number" },
+      { name: "ensemble_temp_min", type: "nullable_number" },
+      { name: "ensemble_temp_max", type: "nullable_number" },
+      { name: "ensemble_wind_max", type: "nullable_number" },
+      { name: "ensemble_spread_temp", type: "nullable_number" },
+      { name: "ensemble_spread_wind", type: "nullable_number" },
+      { name: "briefing", type: "string" },
+      { name: "suitability_cycling", type: "string" },
+      { name: "suitability_hiking", type: "string" },
+      { name: "suitability_skiing", type: "string" }
+    ]
+  },
+  latest_zone_sources: {
+    tab: "weather_latest_report_zone_sources",
+    columns: [
+      { name: "zone_order", type: "integer" },
+      { name: "name", type: "string" },
+      { name: "source_order", type: "integer" },
+      { name: "source", type: "string" },
+      { name: "source_label", type: "string" },
+      { name: "temp_min", type: "nullable_number" },
+      { name: "temp_max", type: "nullable_number" },
+      { name: "wind_max", type: "nullable_number" }
+    ]
+  },
+  latest_mwis_links: {
+    tab: "weather_latest_report_mwis_links",
+    columns: [
+      { name: "link_order", type: "integer" },
+      { name: "link", type: "string" }
+    ]
+  },
+  benchmarks_meta: {
+    tab: "weather_benchmarks_latest",
+    columns: [
+      { name: "generated_at_utc", type: "nullable_string" },
+      { name: "run_date", type: "string" },
+      { name: "eval_date", type: "string" },
+      { name: "lookback_days", type: "nullable_integer" }
+    ]
+  },
+  benchmarks_sources: {
+    tab: "weather_benchmarks_latest_sources",
+    columns: [
+      { name: "source_order", type: "integer" },
+      { name: "source", type: "string" },
+      { name: "source_label", type: "string" },
+      { name: "is_available", type: "boolean" },
+      { name: "is_missing_api_key", type: "boolean" },
+      { name: "is_skipped_error", type: "boolean" },
+      { name: "runtime_note", type: "string" },
+      { name: "latest_confidence", type: "nullable_number" },
+      { name: "mae_temp_max", type: "nullable_number" },
+      { name: "mae_temp_min", type: "nullable_number" },
+      { name: "mae_wind_max", type: "nullable_number" },
+      { name: "composite_error", type: "nullable_number" },
+      { name: "sample_count", type: "nullable_integer" },
+      { name: "rolling_confidence", type: "nullable_number" },
+      { name: "rolling_error", type: "nullable_number" },
+      { name: "rolling_samples", type: "nullable_integer" },
+      { name: "ensemble_weight", type: "nullable_number" },
+      { name: "ensemble_weight_pct", type: "nullable_number" }
+    ]
+  },
+  history_meta: {
+    tab: "weather_history_recent",
+    columns: [
+      { name: "generated_at_utc", type: "nullable_string" },
+      { name: "run_date", type: "string" },
+      { name: "window_days", type: "nullable_integer" },
+      { name: "start_date", type: "string" }
+    ]
+  },
+  history_source_scores: {
+    tab: "weather_history_recent_source_scores",
+    columns: [
+      { name: "row_order", type: "integer" },
+      { name: "date", type: "string" },
+      { name: "source", type: "string" },
+      { name: "source_label", type: "string" },
+      { name: "mae_temp_max", type: "nullable_number" },
+      { name: "mae_temp_min", type: "nullable_number" },
+      { name: "mae_wind_max", type: "nullable_number" },
+      { name: "composite_error", type: "nullable_number" },
+      { name: "confidence", type: "nullable_number" },
+      { name: "sample_count", type: "nullable_integer" }
+    ]
+  },
+  history_source_weights: {
+    tab: "weather_history_recent_source_weights",
+    columns: [
+      { name: "row_order", type: "integer" },
+      { name: "date", type: "string" },
+      { name: "source", type: "string" },
+      { name: "source_label", type: "string" },
+      { name: "weight", type: "nullable_number" },
+      { name: "weight_pct", type: "nullable_number" },
+      { name: "rolling_confidence", type: "nullable_number" },
+      { name: "lookback_days", type: "nullable_integer" }
+    ]
+  },
+  history_actuals: {
+    tab: "weather_history_recent_actuals",
+    columns: [
+      { name: "row_order", type: "integer" },
+      { name: "date", type: "string" },
+      { name: "location", type: "string" },
+      { name: "lat", type: "nullable_number" },
+      { name: "lon", type: "nullable_number" },
+      { name: "temp_max", type: "nullable_number" },
+      { name: "temp_min", type: "nullable_number" },
+      { name: "wind_max", type: "nullable_number" }
+    ]
+  },
+  history_forecasts: {
+    tab: "weather_history_recent_forecasts",
+    columns: [
+      { name: "row_order", type: "integer" },
+      { name: "run_date", type: "string" },
+      { name: "target_date", type: "string" },
+      { name: "source", type: "string" },
+      { name: "source_label", type: "string" },
+      { name: "location", type: "string" },
+      { name: "temp_max", type: "nullable_number" },
+      { name: "temp_min", type: "nullable_number" },
+      { name: "wind_max", type: "nullable_number" }
+    ]
+  },
+  watchlist: {
+    tab: "weather_watchlist",
+    columns: [
+      { name: "location_order", type: "integer" },
+      { name: "location", type: "string" },
+      { name: "updated_at_utc", type: "nullable_string" }
+    ]
+  }
+};
 
 const DATA_FILES = {
   report: "weather_latest_report.json",
@@ -63,7 +239,7 @@ const server = createServer(async (req, res) => {
       sendJson(res, 200, {
         ok: true,
         service: "yuen-yuen-weather",
-        mode: "local-data",
+        mode: getDataBackendMode(),
         timestamp: new Date().toISOString()
       });
       return;
@@ -92,8 +268,9 @@ async function handleApi(req, res, requestUrl) {
     const meta = await buildDataFileMeta();
     sendJson(res, 200, {
       ok: true,
-      mode: "local-data",
-      dataDir: "public/data",
+      mode: getDataBackendMode(),
+      dataDir: getDataBackendMode() === "google-sheets" ? "google-sheets" : "public/data",
+      spreadsheetId: GOOGLE_SHEETS_SPREADSHEET_ID || null,
       files: meta,
       watchlistSync: {
         enabled: Boolean(AIBOT_WATCHLIST_SYNC_URL),
@@ -120,7 +297,7 @@ async function handleApi(req, res, requestUrl) {
 
     sendJson(res, 200, {
       ok: true,
-      source: "public/data",
+      source: bundle.source,
       location: resolvedLocation,
       data: {
         daily,
@@ -151,7 +328,7 @@ async function handleApi(req, res, requestUrl) {
     const bundle = await loadWeatherBundle();
     sendJson(res, 200, {
       ok: true,
-      source: "public/data",
+      source: bundle.source,
       data: buildWatchlistPayload(bundle)
     });
     return;
@@ -178,25 +355,30 @@ async function handleApi(req, res, requestUrl) {
       return;
     }
 
-    const customWatchlist = await loadCustomWatchlist();
-    const hasLocation = hasLocationInList(customWatchlist.locations, location);
+    const bundle = await loadWeatherBundle();
+    const existingWatchlist = buildWatchlistPayload(bundle);
+    const customWatchlist = {
+      locations: [...bundle.customWatchlist.locations],
+      updated_at_utc: bundle.customWatchlist.updated_at_utc
+    };
+    const hasLocation = hasLocationInList(existingWatchlist.locations, location);
 
     if (!hasLocation) {
       customWatchlist.locations.push(location);
       customWatchlist.updated_at_utc = new Date().toISOString();
-      await saveCustomWatchlist(customWatchlist);
+      await saveCustomWatchlist(customWatchlist, bundle.storage);
     }
 
     const syncResult = await trySyncWatchlistLocation(location);
-    const bundle = await loadWeatherBundle();
+    const refreshedBundle = await loadWeatherBundle();
 
     sendJson(res, 200, {
       ok: true,
-      source: "public/data",
+      source: refreshedBundle.source,
       location,
       added: !hasLocation,
       message: hasLocation ? "Location already exists in local watchlist." : "Location added to local watchlist.",
-      watchlist: buildWatchlistPayload(bundle),
+      watchlist: buildWatchlistPayload(refreshedBundle),
       sync: syncResult
     });
     return;
@@ -226,18 +408,657 @@ async function singleWeatherRoute(res, requestUrl, kind) {
 
   sendJson(res, 200, {
     ok: true,
-    source: "public/data",
+    source: bundle.source,
     location: resolvedLocation,
     data
   });
 }
 
+function getDataBackendMode() {
+  return isGoogleSheetsReady() ? "google-sheets" : "local-data";
+}
+
+function isGoogleSheetsReady() {
+  if (!GOOGLE_SHEETS_ENABLED || !GOOGLE_SHEETS_SPREADSHEET_ID) {
+    return false;
+  }
+
+  if (GOOGLE_OAUTH_ACCESS_TOKEN) {
+    return true;
+  }
+
+  return hasGoogleServiceAccountCredentials();
+}
+
+function hasGoogleServiceAccountCredentials() {
+  const serviceAccountJson = (process.env.GOOGLE_SERVICE_ACCOUNT_JSON || process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON || "").trim();
+  if (serviceAccountJson) {
+    try {
+      const parsed = JSON.parse(serviceAccountJson);
+      return Boolean(parsed?.client_email && parsed?.private_key);
+    } catch {
+      return false;
+    }
+  }
+
+  const clientEmail = (
+    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ||
+    process.env.GOOGLE_CLIENT_EMAIL ||
+    process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT_EMAIL ||
+    ""
+  ).trim();
+  const privateKey = (
+    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ||
+    process.env.GOOGLE_PRIVATE_KEY ||
+    process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT_PRIVATE_KEY ||
+    ""
+  ).trim();
+  return Boolean(clientEmail && privateKey);
+}
+
+function resolveGoogleServiceAccountCredentials() {
+  const serviceAccountJson = (process.env.GOOGLE_SERVICE_ACCOUNT_JSON || process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON || "").trim();
+  if (serviceAccountJson) {
+    const parsed = JSON.parse(serviceAccountJson);
+    const clientEmail = `${parsed?.client_email || ""}`.trim();
+    const privateKey = `${parsed?.private_key || ""}`.replace(/\\n/g, "\n");
+    if (!clientEmail || !privateKey) {
+      throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON is missing client_email or private_key.");
+    }
+    return { clientEmail, privateKey };
+  }
+
+  const clientEmail = (
+    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ||
+    process.env.GOOGLE_CLIENT_EMAIL ||
+    process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT_EMAIL ||
+    ""
+  ).trim();
+  const privateKey = (
+    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ||
+    process.env.GOOGLE_PRIVATE_KEY ||
+    process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT_PRIVATE_KEY ||
+    ""
+  ).replace(/\\n/g, "\n");
+
+  if (!clientEmail || !privateKey) {
+    throw new Error("Missing Google service account credentials.");
+  }
+
+  return { clientEmail, privateKey };
+}
+
+function base64UrlEncode(value) {
+  const raw = Buffer.isBuffer(value) ? value.toString("base64") : Buffer.from(String(value)).toString("base64");
+  return raw.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+async function getGoogleAccessToken() {
+  if (GOOGLE_OAUTH_ACCESS_TOKEN) {
+    return GOOGLE_OAUTH_ACCESS_TOKEN;
+  }
+
+  const nowMs = Date.now();
+  if (googleTokenCache.accessToken && nowMs < googleTokenCache.expiresAtMs) {
+    return googleTokenCache.accessToken;
+  }
+
+  const { clientEmail, privateKey } = resolveGoogleServiceAccountCredentials();
+  const now = Math.floor(nowMs / 1000);
+
+  const header = { alg: "RS256", typ: "JWT" };
+  const claim = {
+    iss: clientEmail,
+    scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file",
+    aud: GOOGLE_TOKEN_URL,
+    exp: now + 3600,
+    iat: now
+  };
+
+  const signingInput = `${base64UrlEncode(JSON.stringify(header))}.${base64UrlEncode(JSON.stringify(claim))}`;
+  const signer = createSign("RSA-SHA256");
+  signer.update(signingInput);
+  signer.end();
+  const signature = signer.sign(privateKey);
+  const assertion = `${signingInput}.${base64UrlEncode(signature)}`;
+
+  const response = await fetch(GOOGLE_TOKEN_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion
+    })
+  });
+
+  const payload = await response.json();
+  if (!response.ok || !payload?.access_token) {
+    throw new Error(`Unable to obtain Google access token: ${JSON.stringify(payload)}`);
+  }
+
+  const expiresIn = Number(payload.expires_in) || 3600;
+  googleTokenCache.accessToken = payload.access_token;
+  googleTokenCache.expiresAtMs = Date.now() + Math.max(60, expiresIn - 60) * 1000;
+  return googleTokenCache.accessToken;
+}
+
+async function googleSheetsRequest(accessToken, apiPath, options = {}) {
+  const { method = "GET", body } = options;
+  const url = `${GOOGLE_SHEETS_API_BASE}/${encodeURIComponent(GOOGLE_SHEETS_SPREADSHEET_ID)}${apiPath}`;
+  const response = await fetch(url, {
+    method,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      ...(body ? { "Content-Type": "application/json" } : {})
+    },
+    ...(body ? { body: JSON.stringify(body) } : {})
+  });
+
+  if (response.status === 204) {
+    return null;
+  }
+
+  const text = await response.text();
+  const payload = text ? parseJsonSafely(text) : null;
+  if (!response.ok) {
+    throw new Error(`Google Sheets API ${method} ${apiPath} failed (${response.status}): ${JSON.stringify(payload)}`);
+  }
+  return payload;
+}
+
+function quoteSheetTitle(title) {
+  return `'${String(title || "").replace(/'/g, "''")}'`;
+}
+
+function extractSheetTitleFromRange(range) {
+  const raw = `${range || ""}`.split("!")[0];
+  if (raw.startsWith("'") && raw.endsWith("'")) {
+    return raw.slice(1, -1).replace(/''/g, "'");
+  }
+  return raw;
+}
+
+async function fetchGoogleSheetTitles(accessToken) {
+  const payload = await googleSheetsRequest(accessToken, "?includeGridData=false&fields=sheets.properties.title");
+  const items = Array.isArray(payload?.sheets) ? payload.sheets : [];
+  const titles = new Set();
+  for (const item of items) {
+    const title = `${item?.properties?.title || ""}`.trim();
+    if (title) {
+      titles.add(title);
+    }
+  }
+  return titles;
+}
+
+async function ensureGoogleSheetTabs(accessToken, tabTitles) {
+  const required = Array.from(new Set((tabTitles || []).map((item) => `${item || ""}`.trim()).filter(Boolean)));
+  if (!required.length) {
+    return;
+  }
+
+  const existing = await fetchGoogleSheetTitles(accessToken);
+  const missing = required.filter((tab) => !existing.has(tab));
+  if (!missing.length) {
+    return;
+  }
+
+  await googleSheetsRequest(accessToken, ":batchUpdate", {
+    method: "POST",
+    body: {
+      requests: missing.map((tab) => ({
+        addSheet: {
+          properties: { title: tab }
+        }
+      }))
+    }
+  });
+}
+
+function parseSheetCell(raw, type) {
+  const text = raw === undefined || raw === null ? "" : `${raw}`;
+
+  if (type === "string") {
+    return text;
+  }
+
+  if (type === "nullable_string") {
+    return text === "" ? null : text;
+  }
+
+  if (type === "number" || type === "nullable_number") {
+    if (text === "") {
+      return null;
+    }
+    const n = Number(text);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  if (type === "integer" || type === "nullable_integer") {
+    if (text === "") {
+      return null;
+    }
+    const n = Number(text);
+    return Number.isFinite(n) ? Math.trunc(n) : null;
+  }
+
+  if (type === "boolean" || type === "nullable_boolean") {
+    if (text === "") {
+      return type === "boolean" ? false : null;
+    }
+    if (typeof raw === "boolean") {
+      return raw;
+    }
+    const normalized = text.trim().toLowerCase();
+    return normalized === "true" || normalized === "1" || normalized === "yes";
+  }
+
+  return text;
+}
+
+function formatSheetCell(value, type) {
+  if (value === undefined || value === null) {
+    return "";
+  }
+
+  if (type === "number" || type === "nullable_number" || type === "integer" || type === "nullable_integer") {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : "";
+  }
+
+  if (type === "boolean" || type === "nullable_boolean") {
+    return Boolean(value);
+  }
+
+  return `${value}`;
+}
+
+function parseTableRowsFromSheetValues(values, columns) {
+  if (!Array.isArray(values) || !values.length || !Array.isArray(columns)) {
+    return [];
+  }
+
+  const header = Array.isArray(values[0]) ? values[0].map((item) => `${item || ""}`) : [];
+  const colIndexByName = new Map();
+  for (const col of columns) {
+    colIndexByName.set(col.name, header.indexOf(col.name));
+  }
+
+  const rows = [];
+  for (let rowIndex = 1; rowIndex < values.length; rowIndex += 1) {
+    const sourceRow = Array.isArray(values[rowIndex]) ? values[rowIndex] : [];
+    let hasAnyValue = false;
+    const row = {};
+
+    for (const col of columns) {
+      const idx = colIndexByName.get(col.name);
+      const raw = idx >= 0 ? sourceRow[idx] : "";
+      if (`${raw || ""}` !== "") {
+        hasAnyValue = true;
+      }
+      row[col.name] = parseSheetCell(raw, col.type);
+    }
+
+    if (hasAnyValue) {
+      rows.push(row);
+    }
+  }
+
+  return rows;
+}
+
+function sortRowsByKeys(rows, ...keys) {
+  return [...rows].sort((left, right) => {
+    for (const key of keys) {
+      const lv = left?.[key];
+      const rv = right?.[key];
+      const ln = Number(lv);
+      const rn = Number(rv);
+      if (Number.isFinite(ln) && Number.isFinite(rn)) {
+        if (ln !== rn) {
+          return ln - rn;
+        }
+        continue;
+      }
+
+      const ls = `${lv ?? ""}`;
+      const rs = `${rv ?? ""}`;
+      if (ls !== rs) {
+        return ls.localeCompare(rs);
+      }
+    }
+    return 0;
+  });
+}
+
+async function readGoogleSheetTables(accessToken) {
+  const tableEntries = Object.entries(SHEET_TABLE_DEFS);
+  await ensureGoogleSheetTabs(
+    accessToken,
+    tableEntries.map(([, def]) => def.tab)
+  );
+
+  const params = new URLSearchParams();
+  for (const [, def] of tableEntries) {
+    params.append("ranges", `${quoteSheetTitle(def.tab)}!A:ZZ`);
+  }
+  params.set("majorDimension", "ROWS");
+
+  const payload = await googleSheetsRequest(accessToken, `/values:batchGet?${params.toString()}`);
+  const valueRanges = Array.isArray(payload?.valueRanges) ? payload.valueRanges : [];
+  const byTab = new Map();
+  for (const valueRange of valueRanges) {
+    byTab.set(extractSheetTitleFromRange(valueRange?.range), Array.isArray(valueRange?.values) ? valueRange.values : []);
+  }
+
+  const tables = {};
+  for (const [tableKey, def] of tableEntries) {
+    tables[tableKey] = parseTableRowsFromSheetValues(byTab.get(def.tab) || [], def.columns);
+  }
+
+  return tables;
+}
+
+function latestTablesToJson(tables) {
+  const metaRow = (tables.latest_meta || [])[0] || {};
+  const sources = {
+    configured: [],
+    available: [],
+    used_for_report: [],
+    missing_api_keys: [],
+    skipped_errors: []
+  };
+
+  for (const row of sortRowsByKeys(tables.latest_sources || [], "bucket", "item_order")) {
+    const bucket = `${row?.bucket || ""}`;
+    if (!Object.prototype.hasOwnProperty.call(sources, bucket)) {
+      continue;
+    }
+    const source = `${row?.source || ""}`.trim();
+    if (source) {
+      sources[bucket].push(source);
+    }
+  }
+
+  const zoneMap = new Map();
+  for (const row of sortRowsByKeys(tables.latest_zones || [], "zone_order")) {
+    const zoneOrder = Number(row?.zone_order);
+    if (!Number.isFinite(zoneOrder)) {
+      continue;
+    }
+
+    zoneMap.set(zoneOrder, {
+      name: `${row?.name || ""}`,
+      lat: row?.lat ?? null,
+      lon: row?.lon ?? null,
+      ensemble: {
+        temp_min: row?.ensemble_temp_min ?? null,
+        temp_max: row?.ensemble_temp_max ?? null,
+        wind_max: row?.ensemble_wind_max ?? null,
+        spread_temp: row?.ensemble_spread_temp ?? null,
+        spread_wind: row?.ensemble_spread_wind ?? null
+      },
+      briefing: `${row?.briefing || ""}`,
+      suitability: {
+        cycling: `${row?.suitability_cycling || ""}`,
+        hiking: `${row?.suitability_hiking || ""}`,
+        skiing: `${row?.suitability_skiing || ""}`
+      },
+      source_forecasts: {}
+    });
+  }
+
+  for (const row of sortRowsByKeys(tables.latest_zone_sources || [], "zone_order", "source_order")) {
+    const zoneOrder = Number(row?.zone_order);
+    if (!Number.isFinite(zoneOrder)) {
+      continue;
+    }
+
+    if (!zoneMap.has(zoneOrder)) {
+      zoneMap.set(zoneOrder, {
+        name: `${row?.name || ""}`,
+        lat: null,
+        lon: null,
+        ensemble: {
+          temp_min: null,
+          temp_max: null,
+          wind_max: null,
+          spread_temp: null,
+          spread_wind: null
+        },
+        briefing: "",
+        suitability: { cycling: "", hiking: "", skiing: "" },
+        source_forecasts: {}
+      });
+    }
+
+    const source = `${row?.source || ""}`.trim();
+    if (!source) {
+      continue;
+    }
+
+    zoneMap.get(zoneOrder).source_forecasts[source] = {
+      source_label: `${row?.source_label || source}`,
+      temp_min: row?.temp_min ?? null,
+      temp_max: row?.temp_max ?? null,
+      wind_max: row?.wind_max ?? null
+    };
+  }
+
+  const zones = Array.from(zoneMap.entries())
+    .sort((left, right) => left[0] - right[0])
+    .map((entry) => entry[1]);
+
+  const mwisPdfLinks = sortRowsByKeys(tables.latest_mwis_links || [], "link_order")
+    .map((row) => `${row?.link || ""}`.trim())
+    .filter(Boolean);
+
+  return {
+    generated_at_utc: metaRow?.generated_at_utc ?? null,
+    mode: `${metaRow?.mode || ""}`,
+    run_date: `${metaRow?.run_date || ""}`,
+    forecast_date: `${metaRow?.forecast_date || ""}`,
+    eval_date: `${metaRow?.eval_date || ""}`,
+    lookback_days: metaRow?.lookback_days ?? null,
+    sources,
+    zones,
+    mwis_pdf_links: mwisPdfLinks
+  };
+}
+
+function benchmarkTablesToJson(tables) {
+  const metaRow = (tables.benchmarks_meta || [])[0] || {};
+  const sources = sortRowsByKeys(tables.benchmarks_sources || [], "source_order").map((row) => ({
+    source: `${row?.source || ""}`,
+    source_label: `${row?.source_label || ""}`,
+    is_available: Boolean(row?.is_available),
+    is_missing_api_key: Boolean(row?.is_missing_api_key),
+    is_skipped_error: Boolean(row?.is_skipped_error),
+    runtime_note: `${row?.runtime_note || ""}`,
+    latest_confidence: row?.latest_confidence ?? null,
+    mae_temp_max: row?.mae_temp_max ?? null,
+    mae_temp_min: row?.mae_temp_min ?? null,
+    mae_wind_max: row?.mae_wind_max ?? null,
+    composite_error: row?.composite_error ?? null,
+    sample_count: row?.sample_count ?? null,
+    rolling_confidence: row?.rolling_confidence ?? null,
+    rolling_error: row?.rolling_error ?? null,
+    rolling_samples: row?.rolling_samples ?? null,
+    ensemble_weight: row?.ensemble_weight ?? null,
+    ensemble_weight_pct: row?.ensemble_weight_pct ?? null
+  }));
+
+  return {
+    generated_at_utc: metaRow?.generated_at_utc ?? null,
+    run_date: `${metaRow?.run_date || ""}`,
+    eval_date: `${metaRow?.eval_date || ""}`,
+    lookback_days: metaRow?.lookback_days ?? null,
+    sources
+  };
+}
+
+function historyTablesToJson(tables) {
+  const metaRow = (tables.history_meta || [])[0] || {};
+  const source_scores = sortRowsByKeys(tables.history_source_scores || [], "row_order").map((row) => ({
+    date: `${row?.date || ""}`,
+    source: `${row?.source || ""}`,
+    source_label: `${row?.source_label || ""}`,
+    mae_temp_max: row?.mae_temp_max ?? null,
+    mae_temp_min: row?.mae_temp_min ?? null,
+    mae_wind_max: row?.mae_wind_max ?? null,
+    composite_error: row?.composite_error ?? null,
+    confidence: row?.confidence ?? null,
+    sample_count: row?.sample_count ?? null
+  }));
+
+  const source_weights = sortRowsByKeys(tables.history_source_weights || [], "row_order").map((row) => ({
+    date: `${row?.date || ""}`,
+    source: `${row?.source || ""}`,
+    source_label: `${row?.source_label || ""}`,
+    weight: row?.weight ?? null,
+    weight_pct: row?.weight_pct ?? null,
+    rolling_confidence: row?.rolling_confidence ?? null,
+    lookback_days: row?.lookback_days ?? null
+  }));
+
+  const actuals = sortRowsByKeys(tables.history_actuals || [], "row_order").map((row) => ({
+    date: `${row?.date || ""}`,
+    location: `${row?.location || ""}`,
+    lat: row?.lat ?? null,
+    lon: row?.lon ?? null,
+    temp_max: row?.temp_max ?? null,
+    temp_min: row?.temp_min ?? null,
+    wind_max: row?.wind_max ?? null
+  }));
+
+  const forecasts = sortRowsByKeys(tables.history_forecasts || [], "row_order").map((row) => ({
+    run_date: `${row?.run_date || ""}`,
+    target_date: `${row?.target_date || ""}`,
+    source: `${row?.source || ""}`,
+    source_label: `${row?.source_label || ""}`,
+    location: `${row?.location || ""}`,
+    temp_max: row?.temp_max ?? null,
+    temp_min: row?.temp_min ?? null,
+    wind_max: row?.wind_max ?? null
+  }));
+
+  return {
+    generated_at_utc: metaRow?.generated_at_utc ?? null,
+    run_date: `${metaRow?.run_date || ""}`,
+    window_days: metaRow?.window_days ?? null,
+    start_date: `${metaRow?.start_date || ""}`,
+    source_scores,
+    source_weights,
+    actuals,
+    forecasts
+  };
+}
+
+function watchlistTableToPayload(tables) {
+  const rows = sortRowsByKeys(tables.watchlist || [], "location_order");
+  const updatedAt = rows.length ? rows[0]?.updated_at_utc ?? null : null;
+  const locations = rows
+    .map((row) => `${row?.location || ""}`.trim())
+    .filter(Boolean);
+
+  return {
+    locations,
+    updated_at_utc: updatedAt
+  };
+}
+
+async function loadWeatherBundleFromGoogleSheets() {
+  const accessToken = await getGoogleAccessToken();
+  const tables = await readGoogleSheetTables(accessToken);
+
+  return {
+    report: latestTablesToJson(tables),
+    benchmark: benchmarkTablesToJson(tables),
+    history: historyTablesToJson(tables),
+    customWatchlist: watchlistTableToPayload(tables)
+  };
+}
+
+function watchlistPayloadToSheetRows(payload) {
+  const updated_at_utc = payload?.updated_at_utc || new Date().toISOString();
+  const locations = mergeLocations(payload?.locations || []);
+
+  const rows = locations.map((location, index) => ({
+    location_order: index,
+    location,
+    updated_at_utc
+  }));
+
+  if (!rows.length) {
+    rows.push({
+      location_order: 0,
+      location: "",
+      updated_at_utc
+    });
+  }
+
+  return rows;
+}
+
+async function writeGoogleSheetTableRows(accessToken, tableKey, rows) {
+  const table = SHEET_TABLE_DEFS[tableKey];
+  if (!table) {
+    throw new Error(`Unknown sheet table key: ${tableKey}`);
+  }
+
+  const range = `${quoteSheetTitle(table.tab)}!A:ZZ`;
+  const header = table.columns.map((column) => column.name);
+  const values = [
+    header,
+    ...(rows || []).map((row) => table.columns.map((column) => formatSheetCell(row?.[column.name], column.type)))
+  ];
+
+  await googleSheetsRequest(accessToken, `/values/${encodeURIComponent(range)}:clear`, {
+    method: "POST",
+    body: {}
+  });
+
+  await googleSheetsRequest(accessToken, `/values/${encodeURIComponent(range)}?valueInputOption=RAW`, {
+    method: "PUT",
+    body: { values }
+  });
+}
+
+async function saveCustomWatchlistToGoogleSheets(payload) {
+  const accessToken = await getGoogleAccessToken();
+  await ensureGoogleSheetTabs(accessToken, [SHEET_TABLE_DEFS.watchlist.tab]);
+  const rows = watchlistPayloadToSheetRows(payload);
+  await writeGoogleSheetTableRows(accessToken, "watchlist", rows);
+}
+
 async function loadWeatherBundle() {
+  if (isGoogleSheetsReady()) {
+    try {
+      const sheetBundle = await loadWeatherBundleFromGoogleSheets();
+      const knownLocations = collectKnownLocations(
+        sheetBundle.report,
+        sheetBundle.history,
+        sheetBundle.customWatchlist.locations
+      );
+
+      return {
+        ...sheetBundle,
+        knownLocations,
+        source: "google-sheets",
+        storage: "google-sheets"
+      };
+    } catch (error) {
+      console.error("Google Sheets backend read failed, falling back to local JSON:", error?.message || error);
+    }
+  }
+
   const [report, benchmark, history, customWatchlist] = await Promise.all([
     readJsonFile(DATA_FILE_PATHS.report, {}),
     readJsonFile(DATA_FILE_PATHS.benchmark, {}),
     readJsonFile(DATA_FILE_PATHS.history, {}),
-    loadCustomWatchlist()
+    loadCustomWatchlistFromJson()
   ]);
 
   const knownLocations = collectKnownLocations(report, history, customWatchlist.locations);
@@ -247,7 +1068,9 @@ async function loadWeatherBundle() {
     benchmark: toObject(benchmark),
     history: toObject(history),
     customWatchlist,
-    knownLocations
+    knownLocations,
+    source: "public/data",
+    storage: "json"
   };
 }
 
@@ -571,7 +1394,7 @@ function averageValues(a, b) {
   return null;
 }
 
-async function loadCustomWatchlist() {
+async function loadCustomWatchlistFromJson() {
   const loaded = await readJsonFile(DATA_FILE_PATHS.watchlist, {
     locations: [],
     updated_at_utc: null
@@ -597,7 +1420,7 @@ async function loadCustomWatchlist() {
   };
 }
 
-async function saveCustomWatchlist(payload) {
+async function saveCustomWatchlistToJson(payload) {
   const normalized = {
     updated_at_utc: payload.updated_at_utc || new Date().toISOString(),
     locations: mergeLocations(payload.locations || [])
@@ -606,7 +1429,34 @@ async function saveCustomWatchlist(payload) {
   await writeFile(DATA_FILE_PATHS.watchlist, `${JSON.stringify(normalized, null, 2)}\n`, "utf8");
 }
 
+async function saveCustomWatchlist(payload, storage = "json") {
+  if (storage === "google-sheets" && isGoogleSheetsReady()) {
+    await saveCustomWatchlistToGoogleSheets(payload);
+    return;
+  }
+
+  await saveCustomWatchlistToJson(payload);
+}
+
 async function buildDataFileMeta() {
+  if (isGoogleSheetsReady()) {
+    try {
+      const accessToken = await getGoogleAccessToken();
+      const titles = await fetchGoogleSheetTitles(accessToken);
+      const entries = Object.entries(SHEET_TABLE_DEFS).map(([key, table]) => ([
+        key,
+        {
+          tab: table.tab,
+          exists: titles.has(table.tab),
+          columns: table.columns.map((col) => col.name)
+        }
+      ]));
+      return Object.fromEntries(entries);
+    } catch (error) {
+      console.error("Unable to read Google Sheets metadata; falling back to file metadata:", error?.message || error);
+    }
+  }
+
   const entries = await Promise.all(
     Object.entries(DATA_FILE_PATHS).map(async ([key, filePath]) => {
       try {

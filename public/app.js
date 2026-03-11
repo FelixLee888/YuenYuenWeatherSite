@@ -160,12 +160,12 @@ async function initialize() {
 
 async function loadOverview() {
   setLoading(true);
-  setStatus("Loading predefined locations from public/data...");
+  setStatus("Loading locations...");
 
   const locationResult = await loadPredefinedLocations();
   if (!locationResult.ok) {
     setLoading(false);
-    setStatus(locationResult.error || "Unable to load predefined locations.", "error");
+    setStatus(locationResult.error || "Unable to load locations.", "error");
     return;
   }
 
@@ -196,46 +196,38 @@ async function loadOverview() {
 
 async function loadPredefinedLocations() {
   try {
-    const response = await fetch(resolveRequestUrl("data/weather_latest_report.json"));
-    if (!response.ok) {
+    const watchlistResult = await apiRequest("/api/weather/watchlist");
+    if (!watchlistResult.ok) {
       return {
         ok: false,
         locations: [],
-        error: `Failed to load predefined locations (status ${response.status}).`
+        error: watchlistResult.error || "Unable to load weather watchlist."
       };
     }
 
-    const report = await response.json();
-    const zones = Array.isArray(report?.zones) ? report.zones : [];
-    const predefinedLocations = zones
-      .map((zone) => (typeof zone?.name === "string" ? zone.name.trim() : ""))
-      .filter(Boolean);
-
-    const watchlistResult = await apiRequest("/api/weather/watchlist");
     const watchlistData = toObject(watchlistResult.data);
-    const watchlistLocations = Array.isArray(watchlistData?.locations)
+    const locations = Array.isArray(watchlistData?.locations)
       ? watchlistData.locations.map((item) => `${item || ""}`.trim()).filter(Boolean)
       : [];
-
-    const locations = [...new Set([...predefinedLocations, ...watchlistLocations])];
 
     if (!locations.length) {
       return {
         ok: false,
         locations: [],
-        error: "No locations found in weather_latest_report.json."
+        error: "No locations found in weather watchlist payload."
       };
     }
 
     return {
       ok: true,
-      locations: [...new Set(locations)]
+      locations: [...new Set(locations)],
+      source: watchlistResult.source || "api"
     };
   } catch (error) {
     return {
       ok: false,
       locations: [],
-      error: error?.message || "Failed to read predefined location file."
+      error: error?.message || "Failed to read weather watchlist."
     };
   }
 }
