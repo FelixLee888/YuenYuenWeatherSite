@@ -554,6 +554,87 @@ main {
   overflow-wrap: anywhere;
 }
 
+.next7-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.52rem;
+}
+
+.next7-card {
+  border-radius: 11px;
+  border: 1px solid #d8e4f4;
+  background: var(--surface-alt);
+  padding: 0.52rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.34rem;
+  min-width: 0;
+}
+
+.next7-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.36rem;
+}
+
+.next7-day {
+  margin: 0;
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: #2a456a;
+  line-height: 1.22;
+}
+
+.next7-source-pill {
+  border-radius: 999px;
+  border: 1px solid #cfdef2;
+  background: #eef4ff;
+  color: #4a6388;
+  padding: 0.1rem 0.36rem;
+  font-size: 0.61rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.next7-card-main {
+  display: flex;
+  align-items: center;
+  gap: 0.34rem;
+}
+
+.next7-icon {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.next7-temp {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: #173256;
+}
+
+.next7-range,
+.next7-wind,
+.next7-condition {
+  margin: 0;
+  font-size: 0.69rem;
+  line-height: 1.3;
+  color: #4c6182;
+}
+
+.next7-condition {
+  color: #3c5479;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .sport-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -811,8 +892,13 @@ main {
 
 @media (max-width: 1120px) {
   .metrics-grid,
+  .next7-grid,
   .sport-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .next7-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -952,6 +1038,41 @@ main {
   .metrics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.42rem;
+  }
+
+  .next7-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+
+  .next7-card {
+    padding: 0.46rem;
+    gap: 0.28rem;
+  }
+
+  .next7-day {
+    font-size: 0.68rem;
+  }
+
+  .next7-source-pill {
+    font-size: 0.56rem;
+    padding: 0.08rem 0.3rem;
+  }
+
+  .next7-icon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .next7-temp {
+    font-size: 0.9rem;
+  }
+
+  .next7-range,
+  .next7-wind,
+  .next7-condition {
+    font-size: 0.64rem;
+    line-height: 1.26;
   }
 
   .metrics-grid article {
@@ -1233,6 +1354,10 @@ main {
   }
 
   .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .next7-grid {
     grid-template-columns: 1fr;
   }
 

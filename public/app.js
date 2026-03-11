@@ -101,6 +101,8 @@ const elements = {
   benchmarkList: document.getElementById("benchmarkList"),
   mwisMeta: document.getElementById("mwisMeta"),
   mwisLinks: document.getElementById("mwisLinks"),
+  next7Meta: document.getElementById("next7Meta"),
+  next7Grid: document.getElementById("next7Grid"),
   sportGrid: document.getElementById("sportGrid"),
   historyMetricTempBtn: document.getElementById("historyMetricTempBtn"),
   historyMetricWindBtn: document.getElementById("historyMetricWindBtn"),
@@ -620,6 +622,7 @@ function renderDetail(payload) {
   elements.benchmarkSource.textContent = formatValue(source);
   elements.benchmarkDelta.textContent = `Delta ${formatDelta(delta)}`;
 
+  renderNext7Forecast(history, location);
   renderSportRecommendations(daily?.suitability);
   renderBenchmarkSources(benchmark);
   renderMwisLinks(location, daily?.mwis_links);
@@ -736,6 +739,207 @@ function renderMwisLinks(location, links) {
   });
 
   elements.mwisMeta.textContent = `${uniqueLinks.length} file${uniqueLinks.length > 1 ? "s" : ""}`;
+}
+
+function renderNext7Forecast(historyPayload, location) {
+  if (!elements.next7Grid || !elements.next7Meta) {
+    return;
+  }
+
+  elements.next7Grid.innerHTML = "";
+
+  const forecastRows = buildNext7ForecastRows(historyPayload, location);
+  if (!forecastRows.length) {
+    const note = document.createElement("p");
+    note.className = "muted";
+    note.textContent = `No 7-day forecast available for ${location}.`;
+    elements.next7Grid.appendChild(note);
+    elements.next7Meta.textContent = "Unavailable";
+    return;
+  }
+
+  for (const row of forecastRows) {
+    const card = document.createElement("article");
+    card.className = "next7-card";
+
+    const icon = pickDetailWeatherIcon(row.condition, `${row.date}T12:00:00`);
+    const sourceCountText = `${row.sourceCount} src${row.sourceCount === 1 ? "" : "s"}`;
+    const conditionText = row.condition ? shortText(row.condition, 92) : "Forecast summary not available.";
+
+    card.innerHTML = `
+      <div class="next7-card-head">
+        <p class="next7-day">${escapeHtml(formatDateLabel(row.date))}</p>
+        <span class="next7-source-pill">${escapeHtml(sourceCountText)}</span>
+      </div>
+      <div class="next7-card-main">
+        <img class="next7-icon" src="${escapeHtml(icon.src)}" alt="${escapeHtml(icon.alt)}" />
+        <p class="next7-temp">${escapeHtml(formatTemperature(row.temperature))}</p>
+      </div>
+      <p class="next7-range">L ${escapeHtml(formatTemperature(row.low))} • H ${escapeHtml(formatTemperature(row.high))}</p>
+      <p class="next7-wind">Wind ${escapeHtml(formatWind(row.wind))}</p>
+      <p class="next7-condition">${escapeHtml(conditionText)}</p>
+    `;
+
+    elements.next7Grid.appendChild(card);
+  }
+
+  const totalSources = forecastRows.reduce((sum, row) => sum + row.sourceCount, 0);
+  const averageSources = totalSources / forecastRows.length;
+  elements.next7Meta.textContent = `${forecastRows.length} days • latest model runs (~${averageSources.toFixed(1)} sources/day)`;
+}
+
+function buildNext7ForecastRows(historyPayload, location) {
+  const rows = Array.isArray(historyPayload?.history) ? historyPayload.history : extractHistoryRows(historyPayload);
+  const groupedByDate = new Map();
+
+  for (const row of rows) {
+    const kind = normalizeLocation(row?.kind);
+    if (kind && kind !== "forecast") {
+      continue;
+    }
+
+    if (!kind && !row?.run_date && !row?.source && !row?.source_label) {
+      continue;
+    }
+
+    const dateKey = normalizeDateKey(row?.date || row?.target_date || row?.forecast_date);
+    if (!dateKey) {
+      continue;
+    }
+
+    let sourceKey = normalizeLocation(row?.source_label || row?.source || "");
+    if (!sourceKey) {
+      sourceKey = "forecast-default";
+    }
+
+    if (!groupedByDate.has(dateKey)) {
+      groupedByDate.set(dateKey, new Map());
+    }
+
+    const sourceMap = groupedByDate.get(dateKey);
+    const runRank = resolveForecastRunRank(row);
+    const existing = sourceMap.get(sourceKey);
+    if (!existing || runRank > existing.runRank) {
+      sourceMap.set(sourceKey, { row, runRank });
+    }
+  }
+
+  const sortedDates = Array.from(groupedByDate.keys()).sort((a, b) => a.localeCompare(b));
+  if (!sortedDates.length) {
+    return [];
+  }
+
+  const todayKey = normalizeDateKey(new Date().toISOString());
+  const upcomingDates = todayKey ? sortedDates.filter((dateKey) => dateKey >= todayKey) : sortedDates;
+  const selectedDates = (upcomingDates.length ? upcomingDates : sortedDates).slice(0, 7);
+
+  return selectedDates
+    .map((dateKey) => summarizeNext7ForecastDate(dateKey, Array.from(groupedByDate.get(dateKey)?.values() || []), location))
+    .filter(Boolean);
+}
+
+function summarizeNext7ForecastDate(dateKey, entries, location) {
+  if (!entries.length) {
+    return null;
+  }
+
+  const temperatures = [];
+  const lows = [];
+  const highs = [];
+  const winds = [];
+  const conditions = [];
+
+  for (const entry of entries) {
+    const row = entry?.row;
+    if (!row) {
+      continue;
+    }
+
+    const temperature = toNumber(row?.temperature) ?? averageValues(toNumber(row?.temp_max), toNumber(row?.temp_min));
+    const low = toNumber(row?.temp_min);
+    const high = toNumber(row?.temp_max);
+    const wind = toNumber(row?.wind_max);
+
+    if (Number.isFinite(temperature)) {
+      temperatures.push(temperature);
+    }
+    if (Number.isFinite(low)) {
+      lows.push(low);
+    }
+    if (Number.isFinite(high)) {
+      highs.push(high);
+    }
+    if (Number.isFinite(wind)) {
+      winds.push(wind);
+    }
+
+    const rawCondition = `${row?.condition || row?.summary || row?.description || ""}`.trim();
+    const cleanedCondition = cleanConditionForCard(location, rawCondition);
+    if (cleanedCondition && !/^forecast\b/i.test(cleanedCondition.toLowerCase())) {
+      conditions.push(cleanedCondition);
+    }
+  }
+
+  const meanTemperature = averageList(temperatures);
+  const lowTemperature = lows.length ? Math.min(...lows) : (temperatures.length ? Math.min(...temperatures) : null);
+  const highTemperature = highs.length ? Math.max(...highs) : (temperatures.length ? Math.max(...temperatures) : null);
+  const meanWind = averageList(winds);
+
+  let condition = conditions[0] || "";
+  if (!condition) {
+    if (Number.isFinite(meanWind) && meanWind >= 45) {
+      condition = "Very windy conditions expected.";
+    } else if (Number.isFinite(highTemperature) && highTemperature <= 0) {
+      condition = "Cold conditions expected.";
+    } else {
+      condition = "Forecast from latest model runs.";
+    }
+  }
+
+  return {
+    date: dateKey,
+    temperature: meanTemperature,
+    low: lowTemperature,
+    high: highTemperature,
+    wind: meanWind,
+    condition,
+    sourceCount: entries.length
+  };
+}
+
+function resolveForecastRunRank(row) {
+  const candidates = [row?.run_date, row?.updated_at, row?.generated_at_utc];
+  for (const value of candidates) {
+    const raw = `${value || ""}`.trim();
+    if (!raw) {
+      continue;
+    }
+
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.getTime();
+    }
+
+    const compact = raw.replace(/\D/g, "");
+    if (compact.length >= 8) {
+      return Number.parseInt(compact.slice(0, 14), 10);
+    }
+  }
+
+  return 0;
+}
+
+function averageList(values) {
+  if (!Array.isArray(values) || !values.length) {
+    return null;
+  }
+
+  const finite = values.filter((value) => Number.isFinite(value));
+  if (!finite.length) {
+    return null;
+  }
+
+  return finite.reduce((sum, value) => sum + value, 0) / finite.length;
 }
 
 function setHistoryMetric(metric) {
