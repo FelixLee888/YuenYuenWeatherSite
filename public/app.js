@@ -87,6 +87,7 @@ const elements = {
   overviewPage: document.getElementById("overviewPage"),
   detailPage: document.getElementById("detailPage"),
   locationGrid: document.getElementById("locationGrid"),
+  detailBackBtn: document.getElementById("detailBackBtn"),
   selectedLocationName: document.getElementById("selectedLocationName"),
   selectedUpdated: document.getElementById("selectedUpdated"),
   detailConditionIcon: document.getElementById("detailConditionIcon"),
@@ -119,9 +120,17 @@ function isMobileViewport() {
   return window.matchMedia("(pointer: coarse)").matches && window.matchMedia("(max-width: 1024px)").matches;
 }
 
+function setHeaderDetailState(isDetail) {
+  document.body.classList.toggle("is-detail-view", Boolean(isDetail));
+}
+
 
 function bindEvents() {
   elements.homeBtn.addEventListener("click", () => {
+    showOverviewPage();
+  });
+
+  elements.detailBackBtn?.addEventListener("click", () => {
     showOverviewPage();
   });
 
@@ -196,6 +205,7 @@ function bindEvents() {
 
 async function initialize() {
   state.isMobileLayout = isMobileViewport();
+  setHeaderDetailState(false);
   await loadOverview();
 
   const queryLocation = (new URLSearchParams(window.location.search).get("location") || "").trim();
@@ -342,6 +352,7 @@ async function openDetailPage(location, options = {}) {
 
     state.selectedLocation = location;
     updateFocusedCard(location);
+    setHeaderDetailState(true);
     if (options.animate !== false) {
       await playDetailTransition(location);
     }
@@ -350,6 +361,7 @@ async function openDetailPage(location, options = {}) {
     window.history.replaceState(window.history.state, "", `?location=${encodeURIComponent(location)}`);
     setStatus(`Opened detail page for ${location}.`, "success");
   } catch (error) {
+    setHeaderDetailState(false);
     setStatus(error?.message || `Unable to open detail page for ${location}.`, "error");
   } finally {
     setLoading(false);
@@ -358,6 +370,7 @@ async function openDetailPage(location, options = {}) {
 }
 
 function showOverviewPage() {
+  setHeaderDetailState(false);
   elements.overviewPage.classList.remove("is-hidden");
   elements.detailPage.classList.add("is-hidden");
   window.history.replaceState(window.history.state, "", window.location.pathname);
@@ -368,6 +381,7 @@ function showOverviewPage() {
 }
 
 function showDetailPage() {
+  setHeaderDetailState(true);
   elements.overviewPage.classList.add("is-hidden");
   elements.detailPage.classList.remove("is-hidden");
 }
@@ -1556,6 +1570,9 @@ function shiftFocusedCard(directionStep) {
 
 function setLoading(isLoading) {
   elements.homeBtn.disabled = isLoading;
+  if (elements.detailBackBtn) {
+    elements.detailBackBtn.disabled = isLoading;
+  }
 }
 
 function setStatus(message, type = "info") {

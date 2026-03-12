@@ -23,8 +23,9 @@
           <button id="homeBtn" type="button" class="brand-home" title="Back to weather cards" aria-label="Back to weather cards">
             <img class="brand-icon" src="./asset/yuen_yuen_icon.png" alt="Yuen Yuen icon" />
           </button>
-          <div>
-            <p class="eyebrow">Yuen Yuen Weather</p>
+          <div class="brand-copy">
+            <p class="eyebrow">Live Forecast Watchlist</p>
+            <h1 class="brand-title">Yuen Yuen Weather</h1>
           </div>
         </div>
       </div>
@@ -42,13 +43,20 @@
             <h2 id="selectedLocationName">-</h2>
             <p id="selectedUpdated" class="muted">-</p>
           </div>
-          <div class="detail-condition-badge" aria-hidden="true">
-            <img
-              id="detailConditionIcon"
-              class="detail-condition-icon"
-              src="./asset/weather-icons-set2/svg/weather_icon_set2_16.svg"
-              alt="Current weather"
-            />
+          <div class="detail-top-side">
+            <button id="detailBackBtn" type="button" class="icon-btn detail-back-btn" title="Return to card flow" aria-label="Return to card flow">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M15 18L9 12L15 6" />
+              </svg>
+            </button>
+            <div class="detail-condition-badge" aria-hidden="true">
+              <img
+                id="detailConditionIcon"
+                class="detail-condition-icon"
+                src="./asset/weather-icons-set2/svg/weather_icon_set2_16.svg"
+                alt="Current weather"
+              />
+            </div>
           </div>
         </div>
 
