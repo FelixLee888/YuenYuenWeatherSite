@@ -23,6 +23,7 @@ const LOCATION_COUNTRY_BY_NAME = {
   "ben nevis": "United Kingdom",
   glenshee: "United Kingdom",
   cairngorms: "United Kingdom",
+  paisley: "United Kingdom",
   "passo del tonale": "Italy"
 };
 
