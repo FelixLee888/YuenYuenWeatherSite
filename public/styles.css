@@ -582,23 +582,23 @@ main {
 .detail-swipe-clone {
   will-change: transform, opacity, filter;
   transition:
-    transform 0.38s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.38s ease,
-    filter 0.38s ease;
+    transform 0.48s cubic-bezier(0.2, 0.88, 0.24, 1),
+    opacity 0.48s ease,
+    filter 0.48s ease;
 }
 
 .detail-content.is-incoming {
   pointer-events: none;
-  opacity: 0.16;
-  filter: blur(1.5px);
+  opacity: 0.12;
+  filter: blur(1.8px);
 }
 
 .detail-content.is-incoming.is-swipe-next {
-  transform: translate3d(16%, 0, 0) scale(0.985);
+  transform: translate3d(0, 82px, 0) scale(0.992);
 }
 
 .detail-content.is-incoming.is-swipe-prev {
-  transform: translate3d(-16%, 0, 0) scale(0.985);
+  transform: translate3d(0, -82px, 0) scale(0.992);
 }
 
 .detail-content.is-incoming.is-animating {
@@ -618,15 +618,15 @@ main {
 }
 
 .detail-swipe-clone.is-outgoing.is-swipe-next.is-animating {
-  transform: translate3d(-18%, 0, 0) scale(0.985);
-  opacity: 0.08;
-  filter: blur(1.5px);
+  transform: translate3d(0, -96px, 0) scale(0.992);
+  opacity: 0.06;
+  filter: blur(1.8px);
 }
 
 .detail-swipe-clone.is-outgoing.is-swipe-prev.is-animating {
-  transform: translate3d(18%, 0, 0) scale(0.985);
-  opacity: 0.08;
-  filter: blur(1.5px);
+  transform: translate3d(0, 96px, 0) scale(0.992);
+  opacity: 0.06;
+  filter: blur(1.8px);
 }
 
 .detail-top {
