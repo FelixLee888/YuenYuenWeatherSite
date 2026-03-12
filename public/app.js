@@ -78,6 +78,13 @@ const state = {
     startX: 0,
     startY: 0,
     handled: false
+  },
+  detailSwipe: {
+    tracking: false,
+    startX: 0,
+    startY: 0,
+    handled: false,
+    blocked: false
   }
 };
 
@@ -182,6 +189,10 @@ function bindEvents() {
   elements.locationGrid.addEventListener("touchmove", handleDeckTouchMove, { passive: true });
   elements.locationGrid.addEventListener("touchend", handleDeckTouchEnd, { passive: true });
   elements.locationGrid.addEventListener("touchcancel", handleDeckTouchEnd, { passive: true });
+  elements.detailPage.addEventListener("touchstart", handleDetailTouchStart, { passive: true });
+  elements.detailPage.addEventListener("touchmove", handleDetailTouchMove, { passive: true });
+  elements.detailPage.addEventListener("touchend", handleDetailTouchEnd, { passive: true });
+  elements.detailPage.addEventListener("touchcancel", handleDetailTouchEnd, { passive: true });
 
   elements.historyMetricTempBtn?.addEventListener("click", () => {
     setHistoryMetric("temperature");
@@ -363,6 +374,64 @@ async function openDetailPage(location, options = {}) {
   } catch (error) {
     setHeaderDetailState(false);
     setStatus(error?.message || `Unable to open detail page for ${location}.`, "error");
+  } finally {
+    setLoading(false);
+    state.isTransitioningDetail = false;
+  }
+}
+
+async function switchDetailLocation(directionStep, options = {}) {
+  if (state.isTransitioningDetail || !Array.isArray(state.locations) || !state.locations.length) {
+    return false;
+  }
+
+  const currentIndex = Math.max(
+    0,
+    state.locations.findIndex((entry) => normalizeLocation(entry) === normalizeLocation(state.selectedLocation || state.focusedLocation))
+  );
+  const nextIndex = Math.min(state.locations.length - 1, Math.max(0, currentIndex + directionStep));
+
+  if (nextIndex === currentIndex) {
+    return false;
+  }
+
+  const nextLocation = state.locations[nextIndex];
+  const swipeDirection = directionStep > 0 ? "next" : "prev";
+
+  state.isTransitioningDetail = true;
+  setLoading(true);
+
+  try {
+    let payload = state.cards.get(nextLocation);
+    if (!payload) {
+      const result = await apiRequest(`/api/weather?location=${encodeURIComponent(nextLocation)}`);
+      if (!result.ok) {
+        setStatus(result.error || `Unable to load detail for ${nextLocation}.`, "error");
+        return false;
+      }
+      payload = result;
+      state.cards.set(nextLocation, result);
+    }
+
+    updateFocusedCard(nextLocation);
+
+    if (options.animate !== false) {
+      await playDetailCitySwitchTransition(swipeDirection, "out");
+    }
+
+    state.selectedLocation = nextLocation;
+    renderDetail(payload);
+    window.history.replaceState(window.history.state, "", `?location=${encodeURIComponent(nextLocation)}`);
+
+    if (options.animate !== false) {
+      await playDetailCitySwitchTransition(swipeDirection, "in");
+    }
+
+    setStatus(`Showing ${nextLocation} (${nextIndex + 1}/${state.locations.length}).`, "success");
+    return true;
+  } catch (error) {
+    setStatus(error?.message || `Unable to switch to ${nextLocation}.`, "error");
+    return false;
   } finally {
     setLoading(false);
     state.isTransitioningDetail = false;
@@ -568,6 +637,28 @@ async function playDetailTransition(location) {
 
   targetCard.classList.remove("is-flipping");
   elements.overviewPage.classList.remove("is-transitioning");
+}
+
+async function playDetailCitySwitchTransition(direction, phase) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return;
+  }
+
+  const page = elements.detailPage;
+  if (!page) {
+    return;
+  }
+
+  const directionClass = direction === "prev" ? "is-swipe-prev" : "is-swipe-next";
+  const phaseClass = phase === "out" ? "is-city-exiting" : "is-city-entering";
+
+  page.classList.remove("is-city-exiting", "is-city-entering", "is-swipe-next", "is-swipe-prev");
+  void page.offsetWidth;
+  page.classList.add(directionClass, phaseClass);
+
+  await wait(240);
+
+  page.classList.remove(phaseClass, directionClass);
 }
 
 function wait(ms) {
@@ -1501,6 +1592,22 @@ function isOverviewVisible() {
   return !elements.overviewPage.classList.contains("is-hidden");
 }
 
+function isDetailVisible() {
+  return !elements.detailPage.classList.contains("is-hidden");
+}
+
+function isDetailSwipeBlockedTarget(target) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return Boolean(
+    target.closest(
+      "button, a, input, select, textarea, label, #next7Grid, #historyChart, .history-toggle, #mwisLinks"
+    )
+  );
+}
+
 function handleDeckTouchStart(event) {
   if (!isMobileViewport() || state.isTransitioningDetail || !isOverviewVisible()) {
     return;
@@ -1545,6 +1652,65 @@ function handleDeckTouchMove(event) {
 function handleDeckTouchEnd() {
   state.swipe.tracking = false;
   state.swipe.handled = false;
+}
+
+function handleDetailTouchStart(event) {
+  if (!isMobileViewport() || state.isTransitioningDetail || !isDetailVisible()) {
+    return;
+  }
+
+  if (event.touches.length !== 1) {
+    state.detailSwipe.tracking = false;
+    return;
+  }
+
+  const target = event.target;
+  if (isDetailSwipeBlockedTarget(target)) {
+    state.detailSwipe.tracking = false;
+    state.detailSwipe.blocked = true;
+    return;
+  }
+
+  const touch = event.touches[0];
+  state.detailSwipe.tracking = true;
+  state.detailSwipe.startX = touch.clientX;
+  state.detailSwipe.startY = touch.clientY;
+  state.detailSwipe.handled = false;
+  state.detailSwipe.blocked = false;
+}
+
+function handleDetailTouchMove(event) {
+  if (
+    !state.detailSwipe.tracking ||
+    state.detailSwipe.handled ||
+    state.detailSwipe.blocked ||
+    event.touches.length !== 1
+  ) {
+    return;
+  }
+
+  const touch = event.touches[0];
+  const deltaX = touch.clientX - state.detailSwipe.startX;
+  const deltaY = touch.clientY - state.detailSwipe.startY;
+  const absX = Math.abs(deltaX);
+  const absY = Math.abs(deltaY);
+
+  if (absX < SWIPE_MIN_DISTANCE_PX) {
+    return;
+  }
+
+  if (absX <= absY * SWIPE_DIRECTION_RATIO) {
+    return;
+  }
+
+  state.detailSwipe.handled = true;
+  void switchDetailLocation(deltaX < 0 ? 1 : -1);
+}
+
+function handleDetailTouchEnd() {
+  state.detailSwipe.tracking = false;
+  state.detailSwipe.handled = false;
+  state.detailSwipe.blocked = false;
 }
 
 function shiftFocusedCard(directionStep) {

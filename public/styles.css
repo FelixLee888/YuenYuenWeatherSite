@@ -562,6 +562,27 @@ main {
   margin-inline: auto;
 }
 
+.detail-page.is-city-exiting > *,
+.detail-page.is-city-entering > * {
+  will-change: transform, opacity;
+}
+
+.detail-page.is-city-exiting.is-swipe-next > * {
+  animation: detail-city-exit-next 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.detail-page.is-city-entering.is-swipe-next > * {
+  animation: detail-city-enter-next 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.detail-page.is-city-exiting.is-swipe-prev > * {
+  animation: detail-city-exit-prev 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.detail-page.is-city-entering.is-swipe-prev > * {
+  animation: detail-city-enter-prev 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 .detail-top {
   display: flex;
   align-items: flex-start;
@@ -1021,6 +1042,54 @@ main {
     transform: var(--card-base-transform) rotateY(-96deg);
     opacity: 0;
     filter: brightness(1.18);
+  }
+}
+
+@keyframes detail-city-exit-next {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(-44px) scale(0.985);
+  }
+}
+
+@keyframes detail-city-enter-next {
+  from {
+    opacity: 0;
+    transform: translateX(44px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes detail-city-exit-prev {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(44px) scale(0.985);
+  }
+}
+
+@keyframes detail-city-enter-prev {
+  from {
+    opacity: 0;
+    transform: translateX(-44px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
   }
 }
 
