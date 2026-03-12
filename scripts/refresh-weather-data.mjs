@@ -23,6 +23,16 @@ const LOCATION_COORDINATE_OVERRIDES = {
   "passo del tonale": { name: "Passo del Tonale", lat: 46.2583, lon: 10.5819 }
 };
 
+function getSheetExportArtifacts(repoRoot) {
+  const exportDir = path.join(repoRoot, ".tmp", "sheet-watchlist");
+  return {
+    exportDir,
+    watchlistJsonPath: path.join(exportDir, "weather_watchlist.json"),
+    historyJsonPath: path.join(exportDir, "weather_history_recent.json"),
+    latestReportJsonPath: path.join(exportDir, "weather_latest_report.json")
+  };
+}
+
 function normalizeLocationKey(value) {
   return `${value || ""}`
     .trim()
@@ -114,9 +124,8 @@ function normalizeWatchlist(payload) {
 }
 
 async function loadWatchlistFromGoogleSheet(repoRoot, sheetImporterPath, spreadsheetId, env) {
-  const watchlistExportDir = path.join(repoRoot, ".tmp", "sheet-watchlist");
-  const watchlistJsonPath = path.join(watchlistExportDir, "weather_watchlist.json");
-  await fs.mkdir(watchlistExportDir, { recursive: true });
+  const artifacts = getSheetExportArtifacts(repoRoot);
+  await fs.mkdir(artifacts.exportDir, { recursive: true });
 
   await runCommand(
     "node",
@@ -126,7 +135,7 @@ async function loadWatchlistFromGoogleSheet(repoRoot, sheetImporterPath, spreads
       "--spreadsheet-id",
       spreadsheetId,
       "--data-dir",
-      watchlistExportDir,
+      artifacts.exportDir,
       "--include-watchlist-json"
     ],
     {
@@ -135,8 +144,49 @@ async function loadWatchlistFromGoogleSheet(repoRoot, sheetImporterPath, spreads
     }
   );
 
-  const watchlistPayload = await readJsonOrDefault(watchlistJsonPath, { locations: [] });
-  return normalizeWatchlist(watchlistPayload);
+  const watchlistPayload = await readJsonOrDefault(artifacts.watchlistJsonPath, { locations: [] });
+  return {
+    locations: normalizeWatchlist(watchlistPayload),
+    ...artifacts
+  };
+}
+
+async function hydrateBenchmarkDbFromSheetHistory(repoRoot, env, artifacts) {
+  const hydrationScriptPath = path.resolve(repoRoot, "scripts/hydrate-weather-benchmark-db.py");
+  if (!existsSync(hydrationScriptPath)) {
+    throw new Error(`Benchmark DB hydration script not found: ${hydrationScriptPath}`);
+  }
+
+  if (!existsSync(artifacts.historyJsonPath)) {
+    throw new Error(`Expected sheet-exported weather history JSON not found: ${artifacts.historyJsonPath}`);
+  }
+
+  if (!existsSync(artifacts.latestReportJsonPath)) {
+    throw new Error(`Expected sheet-exported latest report JSON not found: ${artifacts.latestReportJsonPath}`);
+  }
+
+  const benchmarkDataDir = env.WEATHER_BENCHMARK_DATA_DIR || path.join(repoRoot, ".weather-benchmark-data");
+  const benchmarkDbPath = path.join(benchmarkDataDir, "weather_benchmark.sqlite3");
+  await fs.mkdir(benchmarkDataDir, { recursive: true });
+
+  await runCommand(
+    "python3",
+    [
+      hydrationScriptPath,
+      "--db",
+      benchmarkDbPath,
+      "--history-json",
+      artifacts.historyJsonPath,
+      "--latest-report-json",
+      artifacts.latestReportJsonPath,
+      "--aibot-script",
+      path.resolve(repoRoot, env.AIBOT_SCRIPT_PATH || "aibot/scripts/weather_mountains_briefing.py")
+    ],
+    {
+      cwd: repoRoot,
+      env
+    }
+  );
 }
 
 async function removeLocalWeatherSnapshots(repoRoot) {
@@ -332,9 +382,12 @@ async function main() {
   };
 
   let watchlistNames = [];
+  let sheetExportArtifacts = null;
   if (args.spreadsheetId && existsSync(sheetImporterPath)) {
     try {
-      watchlistNames = await loadWatchlistFromGoogleSheet(repoRoot, sheetImporterPath, args.spreadsheetId, env);
+      const sheetExport = await loadWatchlistFromGoogleSheet(repoRoot, sheetImporterPath, args.spreadsheetId, env);
+      watchlistNames = sheetExport.locations;
+      sheetExportArtifacts = sheetExport;
       console.log(`Loaded ${watchlistNames.length} watchlist locations from Google Sheet.`);
     } catch (error) {
       const message = error instanceof Error ? error.message : `${error}`;
@@ -370,6 +423,11 @@ async function main() {
   // Prevent stale snapshots from being imported into Google Sheets if the next run fails to publish fresh JSON.
   if (args.sheetDirectWrite) {
     await removeLocalWeatherSnapshots(repoRoot);
+  }
+
+  if (sheetExportArtifacts) {
+    await hydrateBenchmarkDbFromSheetHistory(repoRoot, env, sheetExportArtifacts);
+    console.log("Hydrated weather benchmark DB from Google Sheet history.");
   }
 
   await runCommand("python3", [scriptToRun, "--mode", args.mode], {
