@@ -494,6 +494,7 @@ function renderLocationCards() {
     const rainChance = pickValue(daily, ["rainfall_chance", "rain_chance", "precip_probability", "precip_chance"]);
     const score = pickValue(benchmark, ["score", "confidence", "latest_confidence"]);
     const updatedAt = pickValue(daily, ["updated_at", "forecast_date", "date", "timestamp"]);
+    const weatherDate = resolveWeatherDate(daily);
 
     const tempValue = toNumber(temp);
     const tone = CARD_TONES[index % CARD_TONES.length];
@@ -520,7 +521,7 @@ function renderLocationCards() {
           <p class="location-label">${escapeHtml(country)}</p>
         </div>
         <div class="location-head-actions">
-          <p class="location-time">${escapeHtml(formatTimeOnly(updatedAt))}</p>
+          <p class="location-time">${escapeHtml(formatWeatherDateShort(weatherDate))}</p>
         </div>
       </div>
       <div class="location-main">
@@ -706,6 +707,7 @@ function renderDetail(payload) {
 
   const location = payload?.location || state.selectedLocation || "-";
   const updatedAt = pickValue(daily, ["updated_at", "forecast_date", "date", "timestamp"]);
+  const weatherDate = resolveWeatherDate(daily);
   const condition = pickValue(daily, ["condition", "summary", "description"]);
   const temp = pickValue(daily, ["temperature", "temp", "temp_c"]);
   const low = pickValue(daily, ["temp_min", "low", "temperature_min"]);
@@ -715,7 +717,7 @@ function renderDetail(payload) {
   const rainfall = pickValue(daily, ["rainfall_chance", "rain_chance", "precip_probability", "precip_chance"]);
 
   elements.selectedLocationName.textContent = location;
-  elements.selectedUpdated.textContent = `Updated ${formatDateTime(updatedAt)}`;
+  elements.selectedUpdated.textContent = `Weather for ${formatWeatherDateLong(weatherDate)}`;
 
   if (elements.detailConditionIcon) {
     const detailIcon = pickDetailWeatherIcon(condition, updatedAt);
@@ -2878,6 +2880,38 @@ function shortDateLabel(value) {
   }
 
   return parsed.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric"
+  });
+}
+
+function resolveWeatherDate(daily) {
+  const source = toObject(daily) || {};
+  return pickValue(source, ["forecast_date", "date", "timestamp", "updated_at"]);
+}
+
+function formatWeatherDateShort(value) {
+  if (!value) {
+    return "-";
+  }
+
+  const normalized = normalizeDateKey(value);
+  return shortDateLabel(normalized || value);
+}
+
+function formatWeatherDateLong(value) {
+  if (!value) {
+    return "N/A";
+  }
+
+  const normalized = normalizeDateKey(value);
+  const parsed = new Date(normalized || value);
+  if (Number.isNaN(parsed.getTime())) {
+    return `${value}`;
+  }
+
+  return parsed.toLocaleDateString(undefined, {
+    year: "numeric",
     month: "short",
     day: "numeric"
   });
