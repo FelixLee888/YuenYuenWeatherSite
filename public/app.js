@@ -93,6 +93,8 @@ const elements = {
   statusText: document.getElementById("statusText"),
   overviewPage: document.getElementById("overviewPage"),
   detailPage: document.getElementById("detailPage"),
+  detailViewport: document.getElementById("detailViewport"),
+  detailContent: document.getElementById("detailContent"),
   locationGrid: document.getElementById("locationGrid"),
   detailBackBtn: document.getElementById("detailBackBtn"),
   selectedLocationName: document.getElementById("selectedLocationName"),
@@ -416,15 +418,15 @@ async function switchDetailLocation(directionStep, options = {}) {
     updateFocusedCard(nextLocation);
 
     if (options.animate !== false) {
-      await playDetailCitySwitchTransition(swipeDirection, "out");
-    }
-
-    state.selectedLocation = nextLocation;
-    renderDetail(payload);
-    window.history.replaceState(window.history.state, "", `?location=${encodeURIComponent(nextLocation)}`);
-
-    if (options.animate !== false) {
-      await playDetailCitySwitchTransition(swipeDirection, "in");
+      await playDetailCitySwitchTransition(swipeDirection, () => {
+        state.selectedLocation = nextLocation;
+        renderDetail(payload);
+        window.history.replaceState(window.history.state, "", `?location=${encodeURIComponent(nextLocation)}`);
+      });
+    } else {
+      state.selectedLocation = nextLocation;
+      renderDetail(payload);
+      window.history.replaceState(window.history.state, "", `?location=${encodeURIComponent(nextLocation)}`);
     }
 
     setStatus(`Showing ${nextLocation} (${nextIndex + 1}/${state.locations.length}).`, "success");
@@ -639,26 +641,55 @@ async function playDetailTransition(location) {
   elements.overviewPage.classList.remove("is-transitioning");
 }
 
-async function playDetailCitySwitchTransition(direction, phase) {
+async function playDetailCitySwitchTransition(direction, renderNext) {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    renderNext();
     return;
   }
 
-  const page = elements.detailPage;
-  if (!page) {
+  const viewport = elements.detailViewport;
+  const liveContent = elements.detailContent;
+  if (!viewport || !liveContent) {
+    renderNext();
     return;
   }
 
   const directionClass = direction === "prev" ? "is-swipe-prev" : "is-swipe-next";
-  const phaseClass = phase === "out" ? "is-city-exiting" : "is-city-entering";
+  const outgoing = liveContent.cloneNode(true);
+  stripTransientIds(outgoing);
+  outgoing.setAttribute("aria-hidden", "true");
+  outgoing.classList.add("detail-swipe-clone", "is-outgoing", directionClass);
 
-  page.classList.remove("is-city-exiting", "is-city-entering", "is-swipe-next", "is-swipe-prev");
-  void page.offsetWidth;
-  page.classList.add(directionClass, phaseClass);
+  viewport.classList.remove("is-swiping", "is-swipe-next", "is-swipe-prev");
+  viewport.style.minHeight = `${liveContent.offsetHeight}px`;
+  viewport.appendChild(outgoing);
 
-  await wait(240);
+  liveContent.classList.remove("is-incoming", "is-animating", "is-swipe-next", "is-swipe-prev");
+  liveContent.classList.add("is-incoming", directionClass);
+  renderNext();
 
-  page.classList.remove(phaseClass, directionClass);
+  void viewport.offsetWidth;
+  viewport.classList.add("is-swiping", directionClass);
+  liveContent.classList.add("is-animating");
+  outgoing.classList.add("is-animating");
+
+  await wait(380);
+
+  outgoing.remove();
+  liveContent.classList.remove("is-incoming", "is-animating", "is-swipe-next", "is-swipe-prev");
+  viewport.classList.remove("is-swiping", "is-swipe-next", "is-swipe-prev");
+  viewport.style.minHeight = "";
+}
+
+function stripTransientIds(root) {
+  if (!(root instanceof Element)) {
+    return;
+  }
+
+  root.removeAttribute("id");
+  root.querySelectorAll("[id]").forEach((node) => {
+    node.removeAttribute("id");
+  });
 }
 
 function wait(ms) {

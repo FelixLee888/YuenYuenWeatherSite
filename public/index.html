@@ -42,106 +42,110 @@
       </section>
 
       <section id="detailPage" class="page detail-page is-hidden">
-        <div class="detail-top">
-          <div class="detail-summary">
-            <h2 id="selectedLocationName">-</h2>
-            <p id="selectedUpdated" class="muted">-</p>
-          </div>
-          <div class="detail-top-side">
-            <div class="detail-condition-badge" aria-hidden="true">
-              <img
-                id="detailConditionIcon"
-                class="detail-condition-icon"
-                src="./asset/weather-icons-set2/svg/weather_icon_set2_16.svg"
-                alt="Current weather"
-              />
+        <div id="detailViewport" class="detail-viewport">
+          <div id="detailContent" class="detail-content">
+            <div class="detail-top">
+              <div class="detail-summary">
+                <h2 id="selectedLocationName">-</h2>
+                <p id="selectedUpdated" class="muted">-</p>
+              </div>
+              <div class="detail-top-side">
+                <div class="detail-condition-badge" aria-hidden="true">
+                  <img
+                    id="detailConditionIcon"
+                    class="detail-condition-icon"
+                    src="./asset/weather-icons-set2/svg/weather_icon_set2_16.svg"
+                    alt="Current weather"
+                  />
+                </div>
+              </div>
             </div>
+
+            <section class="panel metrics-panel">
+              <div class="metrics-grid">
+                <article class="metric-card metric-card-condition">
+                  <h3>Condition</h3>
+                  <p id="dailyCondition">-</p>
+                </article>
+                <article class="metric-card metric-card-temperature">
+                  <h3>Temperature</h3>
+                  <p id="dailyTemp">-</p>
+                </article>
+                <article class="metric-card">
+                  <h3>Low / High</h3>
+                  <p id="dailyLowHigh">-</p>
+                </article>
+                <article class="metric-card">
+                  <h3>Wind Speed</h3>
+                  <p id="dailyWind">-</p>
+                </article>
+                <article class="metric-card">
+                  <h3>Wind Direction</h3>
+                  <p id="dailyWindDirection">-</p>
+                </article>
+                <article class="metric-card">
+                  <h3>Rain Chance</h3>
+                  <p id="dailyRainfall">-</p>
+                </article>
+                <article class="metric-card">
+                  <h3>Benchmark Score</h3>
+                  <p id="benchmarkScore">-</p>
+                </article>
+                <article class="metric-card">
+                  <h3>Top Source</h3>
+                  <p id="benchmarkSource">-</p>
+                </article>
+              </div>
+            </section>
+
+            <section class="panel next7-panel">
+              <div class="panel-head">
+                <h3>Next 7 Days Forecast</h3>
+                <p id="next7Meta" class="muted">-</p>
+              </div>
+              <div id="next7Grid" class="next7-grid"></div>
+            </section>
+
+            <section class="panel sports-panel">
+              <div class="panel-head">
+                <h3>Sport Activity Recommendation</h3>
+                <p id="sportHint" class="muted">Based on local suitability data</p>
+              </div>
+              <div id="sportGrid" class="sport-grid"></div>
+            </section>
+
+            <section class="panel mwis-panel">
+              <div class="panel-head">
+                <h3>MWIS PDF</h3>
+                <p id="mwisMeta" class="muted">-</p>
+              </div>
+              <div id="mwisLinks" class="mwis-links"></div>
+            </section>
+
+            <section class="panel history-panel">
+              <div class="panel-head history-head">
+                <h3>Historical Trend</h3>
+                <div class="history-head-side">
+                  <div class="history-toggle" role="group" aria-label="Trend metric">
+                    <button id="historyMetricTempBtn" type="button" class="history-toggle-btn is-active" aria-pressed="true">Temp</button>
+                    <button id="historyMetricWindBtn" type="button" class="history-toggle-btn" aria-pressed="false">Wind</button>
+                  </div>
+                  <p id="historyMeta" class="muted">-</p>
+                </div>
+              </div>
+              <div id="historyChart" class="history-chart"></div>
+              <div id="historyLegend" class="history-legend"></div>
+            </section>
+
+            <section class="panel benchmark-panel">
+              <div class="panel-head">
+                <h3>Benchmark Sources</h3>
+                <p id="benchmarkDelta" class="muted">-</p>
+              </div>
+              <div id="benchmarkList" class="benchmark-list"></div>
+            </section>
           </div>
         </div>
-
-        <section class="panel metrics-panel">
-          <div class="metrics-grid">
-            <article class="metric-card metric-card-condition">
-              <h3>Condition</h3>
-              <p id="dailyCondition">-</p>
-            </article>
-            <article class="metric-card metric-card-temperature">
-              <h3>Temperature</h3>
-              <p id="dailyTemp">-</p>
-            </article>
-            <article class="metric-card">
-              <h3>Low / High</h3>
-              <p id="dailyLowHigh">-</p>
-            </article>
-            <article class="metric-card">
-              <h3>Wind Speed</h3>
-              <p id="dailyWind">-</p>
-            </article>
-            <article class="metric-card">
-              <h3>Wind Direction</h3>
-              <p id="dailyWindDirection">-</p>
-            </article>
-            <article class="metric-card">
-              <h3>Rain Chance</h3>
-              <p id="dailyRainfall">-</p>
-            </article>
-            <article class="metric-card">
-              <h3>Benchmark Score</h3>
-              <p id="benchmarkScore">-</p>
-            </article>
-            <article class="metric-card">
-              <h3>Top Source</h3>
-              <p id="benchmarkSource">-</p>
-            </article>
-          </div>
-        </section>
-
-        <section class="panel next7-panel">
-          <div class="panel-head">
-            <h3>Next 7 Days Forecast</h3>
-            <p id="next7Meta" class="muted">-</p>
-          </div>
-          <div id="next7Grid" class="next7-grid"></div>
-        </section>
-
-        <section class="panel sports-panel">
-          <div class="panel-head">
-            <h3>Sport Activity Recommendation</h3>
-            <p id="sportHint" class="muted">Based on local suitability data</p>
-          </div>
-          <div id="sportGrid" class="sport-grid"></div>
-        </section>
-
-        <section class="panel mwis-panel">
-          <div class="panel-head">
-            <h3>MWIS PDF</h3>
-            <p id="mwisMeta" class="muted">-</p>
-          </div>
-          <div id="mwisLinks" class="mwis-links"></div>
-        </section>
-
-        <section class="panel history-panel">
-          <div class="panel-head history-head">
-            <h3>Historical Trend</h3>
-            <div class="history-head-side">
-              <div class="history-toggle" role="group" aria-label="Trend metric">
-                <button id="historyMetricTempBtn" type="button" class="history-toggle-btn is-active" aria-pressed="true">Temp</button>
-                <button id="historyMetricWindBtn" type="button" class="history-toggle-btn" aria-pressed="false">Wind</button>
-              </div>
-              <p id="historyMeta" class="muted">-</p>
-            </div>
-          </div>
-          <div id="historyChart" class="history-chart"></div>
-          <div id="historyLegend" class="history-legend"></div>
-        </section>
-
-        <section class="panel benchmark-panel">
-          <div class="panel-head">
-            <h3>Benchmark Sources</h3>
-            <p id="benchmarkDelta" class="muted">-</p>
-          </div>
-          <div id="benchmarkList" class="benchmark-list"></div>
-        </section>
       </section>
     </main>
   </body>
