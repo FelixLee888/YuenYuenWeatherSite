@@ -2841,19 +2841,19 @@ function pickForecastWeatherIcon(input) {
   const condition = `${source.condition || ""}`;
   const conditionLower = condition.toLowerCase();
   const dateTime = source.dateTime || null;
-
-  const hasSpecificCondition = /thunder|lightning|storm|tornado|cyclone|hurricane|rain|shower|drizzle|snow|sleet|ice|frost|hail|wind|gust|gale|overcast|cloud|fog|mist|haze|clear|sun/.test(
-    conditionLower
-  );
-  if (hasSpecificCondition) {
-    return pickDetailWeatherIcon(condition, dateTime);
-  }
-
   const rainChance = normalizeRainfallChance(source.rainChance);
   const wind = toNumber(source.wind);
   const temperature = toNumber(source.temperature);
   const low = toNumber(source.low);
   const high = toNumber(source.high);
+
+  if (conditionLower.includes("thunder") || conditionLower.includes("lightning") || conditionLower.includes("storm")) {
+    return { src: DETAIL_WEATHER_ICON_SET2.thunder, alt: "Thunderstorm forecast" };
+  }
+
+  if (conditionLower.includes("tornado") || conditionLower.includes("cyclone") || conditionLower.includes("hurricane")) {
+    return { src: DETAIL_WEATHER_ICON_SET2.storm, alt: "Severe storm forecast" };
+  }
 
   if (rainChance !== null) {
     if (rainChance >= 85) {
@@ -2878,6 +2878,13 @@ function pickForecastWeatherIcon(input) {
 
   if (rainChance !== null && rainChance >= 35) {
     return { src: DETAIL_WEATHER_ICON_SET2.cloud, alt: "Cloudy forecast" };
+  }
+
+  const hasSpecificCondition = /rain|shower|drizzle|snow|sleet|ice|frost|hail|wind|gust|gale|overcast|cloud|fog|mist|haze|clear|sun/.test(
+    conditionLower
+  );
+  if (hasSpecificCondition) {
+    return pickDetailWeatherIcon(condition, dateTime);
   }
 
   if (isLikelyNightTime(dateTime)) {
