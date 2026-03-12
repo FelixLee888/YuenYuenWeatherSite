@@ -748,7 +748,7 @@ function renderDetail(payload) {
   elements.benchmarkSource.textContent = formatValue(source);
   elements.benchmarkDelta.textContent = `Delta ${formatDelta(delta)}`;
 
-  renderNext7Forecast(daily, history, location);
+  renderNext7Forecast(daily, history, location, weatherDate);
   renderSportRecommendations(daily?.suitability);
   renderBenchmarkSources(benchmark);
   renderMwisLinks(location, daily?.mwis_links);
@@ -867,14 +867,14 @@ function renderMwisLinks(location, links) {
   elements.mwisMeta.textContent = `${uniqueLinks.length} file${uniqueLinks.length > 1 ? "s" : ""}`;
 }
 
-function renderNext7Forecast(dailyPayload, historyPayload, location) {
+function renderNext7Forecast(dailyPayload, historyPayload, location, startDate) {
   if (!elements.next7Grid || !elements.next7Meta) {
     return;
   }
 
   elements.next7Grid.innerHTML = "";
 
-  const forecastRows = resolveForecastRows(dailyPayload, historyPayload, location);
+  const forecastRows = resolveForecastRows(dailyPayload, historyPayload, location, startDate);
   if (!forecastRows.length) {
     const note = document.createElement("p");
     note.className = "muted";
@@ -924,16 +924,18 @@ function renderNext7Forecast(dailyPayload, historyPayload, location) {
   elements.next7Meta.textContent = `${forecastRows.length} days • latest model runs (~${averageSources.toFixed(1)} sources/day)`;
 }
 
-function resolveForecastRows(dailyPayload, historyPayload, location) {
+function resolveForecastRows(dailyPayload, historyPayload, location, startDate) {
   const fromDaily = normalizeDailyNext7ForecastRows(dailyPayload?.next_7_days, location);
   const fromSourceForecasts = buildNext7ForecastRowsFromSourceForecasts(dailyPayload?.source_forecasts, location);
-  return fromDaily.length
+  const rows = fromDaily.length
     ? fromDaily
     : (fromSourceForecasts.length ? fromSourceForecasts : buildNext7ForecastRows(historyPayload, location));
+
+  return selectForecastRowsWindow(rows, startDate);
 }
 
 function resolveDetailForecastIconInput(dailyPayload, historyPayload, location, weatherDate, fallback) {
-  const forecastRows = resolveForecastRows(dailyPayload, historyPayload, location);
+  const forecastRows = resolveForecastRows(dailyPayload, historyPayload, location, weatherDate);
   const targetDate = normalizeDateKey(weatherDate);
   const matchingRow = targetDate
     ? forecastRows.find((row) => normalizeDateKey(row?.date) === targetDate)
@@ -960,6 +962,32 @@ function resolveDetailForecastIconInput(dailyPayload, historyPayload, location, 
     low: fallback.low,
     high: fallback.high
   };
+}
+
+function selectForecastRowsWindow(rows, startDate, maxDays = 7) {
+  if (!Array.isArray(rows) || !rows.length) {
+    return [];
+  }
+
+  const normalizedRows = rows
+    .map((row) => {
+      const date = normalizeDateKey(row?.date || row?.target_date || row?.forecast_date);
+      return date ? { ...row, date } : null;
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.date.localeCompare(right.date));
+
+  if (!normalizedRows.length) {
+    return [];
+  }
+
+  const anchorDate = normalizeDateKey(startDate);
+  if (!anchorDate) {
+    return normalizedRows.slice(0, maxDays);
+  }
+
+  const anchoredRows = normalizedRows.filter((row) => row.date >= anchorDate);
+  return (anchoredRows.length ? anchoredRows : normalizedRows).slice(0, maxDays);
 }
 
 function normalizeDailyNext7ForecastRows(rows, location) {
