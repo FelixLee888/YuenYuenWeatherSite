@@ -14,6 +14,22 @@ const LOCAL_SNAPSHOT_FILES = [
   "public/data/weather_watchlist.json"
 ];
 
+const LOCATION_COORDINATE_OVERRIDES = {
+  "ben nevis": { name: "Ben Nevis", lat: 56.7969, lon: -5.0036 },
+  "cairngorms": { name: "Cairngorms", lat: 57.1167, lon: -3.6667 },
+  "glencoe": { name: "Glencoe", lat: 56.6833, lon: -5.1000 },
+  "glenshee": { name: "Glenshee", lat: 56.8833, lon: -3.4167 },
+  "paisley": { name: "Paisley", lat: 55.8473, lon: -4.4401 },
+  "passo del tonale": { name: "Passo del Tonale", lat: 46.2583, lon: 10.5819 }
+};
+
+function normalizeLocationKey(value) {
+  return `${value || ""}`
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
 function parseArgs(argv) {
   const args = {
     mode: process.env.WEATHER_BRIEFING_MODE || "full",
@@ -169,6 +185,20 @@ async function resolveWatchlistLocations(names) {
   const seen = new Set();
 
   for (const name of names) {
+    const override = LOCATION_COORDINATE_OVERRIDES[normalizeLocationKey(name)];
+    if (override) {
+      const key = normalizeLocationKey(override.name);
+      if (!seen.has(key)) {
+        seen.add(key);
+        resolved.push({
+          name: override.name,
+          lat: override.lat,
+          lon: override.lon
+        });
+      }
+      continue;
+    }
+
     try {
       const entry = await geocodeLocation(name);
       if (!entry) {
@@ -176,7 +206,7 @@ async function resolveWatchlistLocations(names) {
         continue;
       }
 
-      const key = entry.name.toLowerCase();
+      const key = normalizeLocationKey(entry.name);
       if (seen.has(key)) {
         continue;
       }

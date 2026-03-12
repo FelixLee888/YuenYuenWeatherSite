@@ -82,8 +82,6 @@ const state = {
 
 const elements = {
   homeBtn: document.getElementById("homeBtn"),
-  addLocationBtn: document.getElementById("addLocationBtn"),
-  refreshAllBtn: document.getElementById("refreshAllBtn"),
   statusText: document.getElementById("statusText"),
   overviewPage: document.getElementById("overviewPage"),
   detailPage: document.getElementById("detailPage"),
@@ -95,6 +93,8 @@ const elements = {
   dailyTemp: document.getElementById("dailyTemp"),
   dailyLowHigh: document.getElementById("dailyLowHigh"),
   dailyWind: document.getElementById("dailyWind"),
+  dailyWindDirection: document.getElementById("dailyWindDirection"),
+  dailyRainfall: document.getElementById("dailyRainfall"),
   benchmarkScore: document.getElementById("benchmarkScore"),
   benchmarkSource: document.getElementById("benchmarkSource"),
   benchmarkDelta: document.getElementById("benchmarkDelta"),
@@ -122,24 +122,6 @@ function isMobileViewport() {
 function bindEvents() {
   elements.homeBtn.addEventListener("click", () => {
     showOverviewPage();
-  });
-
-  elements.addLocationBtn.addEventListener("click", async () => {
-    const location = window.prompt("Add new location", "");
-    if (!location) {
-      return;
-    }
-
-    const normalized = location.trim();
-    if (!normalized) {
-      return;
-    }
-
-    await addLocation(normalized);
-  });
-
-  elements.refreshAllBtn.addEventListener("click", async () => {
-    await loadOverview();
   });
 
   elements.locationGrid.addEventListener("click", async (event) => {
@@ -432,6 +414,8 @@ function renderLocationCards() {
     const low = pickValue(daily, ["temp_min", "low", "temperature_min"]);
     const high = pickValue(daily, ["temp_max", "high", "temperature_max"]);
     const wind = pickValue(daily, ["wind_kph", "wind", "wind_speed"]);
+    const windDirection = pickValue(daily, ["wind_direction", "wind_dir", "wind_bearing", "wind_deg"]);
+    const rainChance = pickValue(daily, ["rainfall_chance", "rain_chance", "precip_probability", "precip_chance"]);
     const score = pickValue(benchmark, ["score", "confidence", "latest_confidence"]);
     const updatedAt = pickValue(daily, ["updated_at", "forecast_date", "date", "timestamp"]);
 
@@ -487,6 +471,14 @@ function renderLocationCards() {
         <article class="mini-stat">
           <span>Wind</span>
           <strong>${escapeHtml(formatWind(wind))}</strong>
+        </article>
+        <article class="mini-stat">
+          <span>Direction</span>
+          <strong>${escapeHtml(formatWindDirection(windDirection))}</strong>
+        </article>
+        <article class="mini-stat">
+          <span>Rain</span>
+          <strong>${escapeHtml(formatRainChance(rainChance))}</strong>
         </article>
         <article class="mini-stat">
           <span>Score</span>
@@ -599,6 +591,8 @@ function renderDetail(payload) {
   const low = pickValue(daily, ["temp_min", "low", "temperature_min"]);
   const high = pickValue(daily, ["temp_max", "high", "temperature_max"]);
   const wind = pickValue(daily, ["wind_kph", "wind", "wind_speed"]);
+  const windDirection = pickValue(daily, ["wind_direction", "wind_dir", "wind_bearing", "wind_deg"]);
+  const rainfall = pickValue(daily, ["rainfall_chance", "rain_chance", "precip_probability", "precip_chance"]);
 
   elements.selectedLocationName.textContent = location;
   elements.selectedUpdated.textContent = `Updated ${formatDateTime(updatedAt)}`;
@@ -613,6 +607,8 @@ function renderDetail(payload) {
   elements.dailyTemp.textContent = formatTemperature(temp);
   elements.dailyLowHigh.textContent = `${formatTemperature(low)} / ${formatTemperature(high)}`;
   elements.dailyWind.textContent = formatWind(wind);
+  elements.dailyWindDirection.textContent = formatWindDirection(windDirection);
+  elements.dailyRainfall.textContent = formatRainChance(rainfall);
 
   const score = pickValue(benchmark, ["score", "confidence", "latest_confidence"]);
   const source = pickValue(benchmark, ["source", "provider", "model"]);
@@ -1585,8 +1581,7 @@ function shiftFocusedCard(directionStep) {
 }
 
 function setLoading(isLoading) {
-  elements.addLocationBtn.disabled = isLoading;
-  elements.refreshAllBtn.disabled = isLoading;
+  elements.homeBtn.disabled = isLoading;
 }
 
 function setStatus(message, type = "info") {
@@ -2488,6 +2483,15 @@ function formatWind(value) {
   }
 
   return `${numeric.toFixed(1)} km/h`;
+}
+
+function formatWindDirection(value) {
+  const normalized = normalizeWindDirection(value);
+  if (!normalized) {
+    return formatValue(value);
+  }
+
+  return normalized;
 }
 
 function formatRainChance(value) {
