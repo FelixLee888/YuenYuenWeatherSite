@@ -675,7 +675,7 @@ async function playDetailCitySwitchTransition(direction, renderNext) {
   liveContent.classList.add("is-animating");
   outgoing.classList.add("is-animating");
 
-  await wait(480);
+  await wait(600);
 
   outgoing.remove();
   liveContent.classList.remove("is-incoming", "is-animating", "is-swipe-next", "is-swipe-prev");
