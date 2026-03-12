@@ -715,20 +715,20 @@ function renderDetail(payload) {
   const wind = pickValue(daily, ["wind_kph", "wind", "wind_speed"]);
   const windDirection = pickValue(daily, ["wind_direction", "wind_dir", "wind_bearing", "wind_deg"]);
   const rainfall = pickValue(daily, ["rainfall_chance", "rain_chance", "precip_probability", "precip_chance"]);
+  const detailIconInput = resolveDetailForecastIconInput(daily, history, location, weatherDate, {
+    condition,
+    rainfall,
+    wind,
+    temp,
+    low,
+    high
+  });
 
   elements.selectedLocationName.textContent = location;
   elements.selectedUpdated.textContent = `Weather for ${formatWeatherDateLong(weatherDate)}`;
 
   if (elements.detailConditionIcon) {
-    const detailIcon = pickForecastWeatherIcon({
-      condition,
-      dateTime: updatedAt,
-      rainChance: rainfall,
-      wind,
-      temperature: temp,
-      low,
-      high
-    });
+    const detailIcon = pickForecastWeatherIcon(detailIconInput);
     elements.detailConditionIcon.src = detailIcon.src;
     elements.detailConditionIcon.alt = detailIcon.alt;
   }
@@ -874,11 +874,7 @@ function renderNext7Forecast(dailyPayload, historyPayload, location) {
 
   elements.next7Grid.innerHTML = "";
 
-  const fromDaily = normalizeDailyNext7ForecastRows(dailyPayload?.next_7_days, location);
-  const fromSourceForecasts = buildNext7ForecastRowsFromSourceForecasts(dailyPayload?.source_forecasts, location);
-  const forecastRows = fromDaily.length
-    ? fromDaily
-    : (fromSourceForecasts.length ? fromSourceForecasts : buildNext7ForecastRows(historyPayload, location));
+  const forecastRows = resolveForecastRows(dailyPayload, historyPayload, location);
   if (!forecastRows.length) {
     const note = document.createElement("p");
     note.className = "muted";
@@ -926,6 +922,44 @@ function renderNext7Forecast(dailyPayload, historyPayload, location) {
   const totalSources = forecastRows.reduce((sum, row) => sum + row.sourceCount, 0);
   const averageSources = totalSources / forecastRows.length;
   elements.next7Meta.textContent = `${forecastRows.length} days • latest model runs (~${averageSources.toFixed(1)} sources/day)`;
+}
+
+function resolveForecastRows(dailyPayload, historyPayload, location) {
+  const fromDaily = normalizeDailyNext7ForecastRows(dailyPayload?.next_7_days, location);
+  const fromSourceForecasts = buildNext7ForecastRowsFromSourceForecasts(dailyPayload?.source_forecasts, location);
+  return fromDaily.length
+    ? fromDaily
+    : (fromSourceForecasts.length ? fromSourceForecasts : buildNext7ForecastRows(historyPayload, location));
+}
+
+function resolveDetailForecastIconInput(dailyPayload, historyPayload, location, weatherDate, fallback) {
+  const forecastRows = resolveForecastRows(dailyPayload, historyPayload, location);
+  const targetDate = normalizeDateKey(weatherDate);
+  const matchingRow = targetDate
+    ? forecastRows.find((row) => normalizeDateKey(row?.date) === targetDate)
+    : forecastRows[0];
+
+  if (matchingRow) {
+    return {
+      condition: matchingRow.condition,
+      dateTime: matchingRow.date ? `${matchingRow.date}T12:00:00` : null,
+      rainChance: matchingRow.rainChance,
+      wind: matchingRow.wind,
+      temperature: matchingRow.temperature,
+      low: matchingRow.low,
+      high: matchingRow.high
+    };
+  }
+
+  return {
+    condition: fallback.condition,
+    dateTime: targetDate ? `${targetDate}T12:00:00` : weatherDate || null,
+    rainChance: fallback.rainfall,
+    wind: fallback.wind,
+    temperature: fallback.temp,
+    low: fallback.low,
+    high: fallback.high
+  };
 }
 
 function normalizeDailyNext7ForecastRows(rows, location) {
