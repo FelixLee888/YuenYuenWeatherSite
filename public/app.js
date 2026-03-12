@@ -1008,10 +1008,10 @@ function normalizeDailyNext7ForecastRows(rows, location) {
       const high = toNumber(source.temp_max) ?? toNumber(source.high);
       const wind = toNumber(source.wind_kph) ?? toNumber(source.wind_max) ?? toNumber(source.wind);
       const rainChance = normalizeRainfallChance(
-        source.rainfall_chance ?? source.rain_chance ?? source.precip_probability ?? source.precip_chance
+        source.rainChance ?? source.rainfall_chance ?? source.rain_chance ?? source.precip_probability ?? source.precip_chance
       );
       const windDirection = normalizeWindDirection(
-        source.wind_direction ?? source.wind_dir ?? source.wind_bearing ?? source.wind_deg
+        source.windDirection ?? source.wind_direction ?? source.wind_dir ?? source.wind_bearing ?? source.wind_deg
       );
       const condition = cleanConditionForCard(location, source.condition || source.summary || source.description || "");
       const sourceCount = toNumber(source.source_count) || toNumber(source.sourceCount) || 1;
