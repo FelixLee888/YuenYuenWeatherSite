@@ -571,7 +571,7 @@ main {
   z-index: 1;
   display: grid;
   gap: 0.75rem;
-  transform: translate3d(0, 0, 0);
+  padding-top: 0.12rem;
 }
 
 .detail-viewport.is-swiping {
@@ -671,6 +671,8 @@ main {
 .detail-top h2 {
   margin: 0;
   font-size: 1.28rem;
+  line-height: 1.14;
+  padding-top: 0.04em;
   overflow-wrap: anywhere;
 }
 
