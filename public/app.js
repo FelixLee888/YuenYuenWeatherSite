@@ -166,7 +166,7 @@ function bindEvents() {
     }
 
     updateFocusedCard(location);
-    setStatus(`Double-click ${location} to open detail view.`);
+    setStatus(`Focused ${location}. Use left/right keys to browse, or double-click to open detail view.`);
   });
 
   elements.locationGrid.addEventListener("dblclick", async (event) => {
@@ -195,6 +195,7 @@ function bindEvents() {
   elements.detailPage.addEventListener("touchmove", handleDetailTouchMove, { passive: true });
   elements.detailPage.addEventListener("touchend", handleDetailTouchEnd, { passive: true });
   elements.detailPage.addEventListener("touchcancel", handleDetailTouchEnd, { passive: true });
+  window.addEventListener("keydown", handleGlobalKeydown);
 
   elements.historyMetricTempBtn?.addEventListener("click", () => {
     setHistoryMetric("temperature");
@@ -447,7 +448,7 @@ function showOverviewPage() {
   window.history.replaceState(window.history.state, "", window.location.pathname);
   const hint = isMobileViewport()
     ? "Showing predefined locations. Swipe to browse, tap a card for details."
-    : "Showing predefined locations. Double-click a card for details.";
+    : "Showing predefined locations. Use left/right keys to browse, or double-click a card for details.";
   setStatus(hint);
 }
 
@@ -475,7 +476,7 @@ function renderLocationCards() {
 
   const actionHint = isMobileViewport()
     ? "Swipe or tap for detail"
-    : "Double-click for detail view";
+    : "Arrows browse, double-click opens";
 
   for (let index = 0; index < state.locations.length; index += 1) {
     const location = state.locations[index];
@@ -1637,6 +1638,49 @@ function isDetailSwipeBlockedTarget(target) {
       "button, a, input, select, textarea, label, #next7Grid, #historyChart, .history-toggle, #mwisLinks"
     )
   );
+}
+
+function isKeyboardNavigationTarget(target) {
+  if (!(target instanceof HTMLElement)) {
+    return true;
+  }
+
+  if (target.isContentEditable) {
+    return false;
+  }
+
+  return !Boolean(target.closest("input, textarea, select, [contenteditable='true'], [contenteditable=''], [role='textbox']"));
+}
+
+function handleGlobalKeydown(event) {
+  if (isMobileViewport() || state.isTransitioningDetail) {
+    return;
+  }
+
+  if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) {
+    return;
+  }
+
+  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
+    return;
+  }
+
+  if (!isKeyboardNavigationTarget(event.target)) {
+    return;
+  }
+
+  const directionStep = event.key === "ArrowRight" ? 1 : -1;
+
+  if (isDetailVisible()) {
+    event.preventDefault();
+    void switchDetailLocation(directionStep);
+    return;
+  }
+
+  if (isOverviewVisible()) {
+    event.preventDefault();
+    shiftFocusedCard(directionStep);
+  }
 }
 
 function handleDeckTouchStart(event) {
