@@ -146,6 +146,49 @@ async function removeLocalWeatherSnapshots(repoRoot) {
   }
 }
 
+function coordinatesClose(actual, expected, tolerance = 0.05) {
+  return Math.abs(actual - expected) <= tolerance;
+}
+
+async function validateFreshWeatherSnapshots(repoRoot, resolvedLocations) {
+  const requiredFiles = LOCAL_SNAPSHOT_FILES.slice(0, 3).map((relativePath) => path.resolve(repoRoot, relativePath));
+
+  for (const filePath of requiredFiles) {
+    if (!existsSync(filePath)) {
+      throw new Error(`Expected refreshed weather snapshot not found: ${filePath}`);
+    }
+  }
+
+  const latestReport = await readJsonOrDefault(requiredFiles[0], null);
+  if (!latestReport || !Array.isArray(latestReport?.zones) || latestReport.zones.length === 0) {
+    throw new Error("Refreshed weather latest report is missing zones.");
+  }
+
+  for (const location of resolvedLocations || []) {
+    const override = LOCATION_COORDINATE_OVERRIDES[normalizeLocationKey(location?.name)];
+    if (!override) {
+      continue;
+    }
+
+    const zone = latestReport.zones.find((entry) => normalizeLocationKey(entry?.name) === normalizeLocationKey(override.name));
+    if (!zone) {
+      throw new Error(`Refreshed weather latest report is missing zone '${override.name}'.`);
+    }
+
+    const lat = Number(zone.lat);
+    const lon = Number(zone.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      throw new Error(`Refreshed weather latest report has invalid coordinates for '${override.name}'.`);
+    }
+
+    if (!coordinatesClose(lat, override.lat) || !coordinatesClose(lon, override.lon)) {
+      throw new Error(
+        `Refreshed coordinates for '${override.name}' do not match override. Got ${lat}, ${lon}; expected ${override.lat}, ${override.lon}.`
+      );
+    }
+  }
+}
+
 async function geocodeLocation(name) {
   const url = new URL(GEOCODE_URL);
   url.searchParams.set("name", name);
@@ -283,7 +326,7 @@ async function main() {
     WEATHER_SITE_DATA_SUBDIR: process.env.WEATHER_SITE_DATA_SUBDIR || "public/data",
     WEATHER_SITE_GIT_REMOTE: process.env.WEATHER_SITE_GIT_REMOTE || "origin",
     WEATHER_SITE_GIT_BRANCH: process.env.WEATHER_SITE_GIT_BRANCH || "main",
-    WEATHER_SITE_GIT_PUSH_ENABLED: process.env.WEATHER_SITE_GIT_PUSH_ENABLED || "1",
+    WEATHER_SITE_GIT_PUSH_ENABLED: args.sheetDirectWrite ? "0" : (process.env.WEATHER_SITE_GIT_PUSH_ENABLED || "1"),
     WEATHER_BENCHMARK_DATA_DIR:
       process.env.WEATHER_BENCHMARK_DATA_DIR || path.join(repoRoot, ".weather-benchmark-data")
   };
@@ -302,9 +345,10 @@ async function main() {
   }
 
   let scriptToRun = aibotScriptPath;
+  let resolvedLocations = [];
 
   if (watchlistNames.length > 0) {
-    const resolvedLocations = await resolveWatchlistLocations(watchlistNames);
+    resolvedLocations = await resolveWatchlistLocations(watchlistNames);
     if (resolvedLocations.length > 0) {
       console.log(`Resolved ${resolvedLocations.length} watchlist locations for weather crawl.`);
 
@@ -323,12 +367,18 @@ async function main() {
     console.log("Google Sheet watchlist is empty. Falling back to AIBot default locations.");
   }
 
+  // Prevent stale snapshots from being imported into Google Sheets if the next run fails to publish fresh JSON.
+  if (args.sheetDirectWrite) {
+    await removeLocalWeatherSnapshots(repoRoot);
+  }
+
   await runCommand("python3", [scriptToRun, "--mode", args.mode], {
     cwd: repoRoot,
     env
   });
 
   if (args.sheetDirectWrite) {
+    await validateFreshWeatherSnapshots(repoRoot, resolvedLocations);
     console.log(`Syncing refreshed weather snapshots directly to Google Sheet ${args.spreadsheetId}...`);
     await runCommand("node", [sheetImporterPath, "import-from-json", "--spreadsheet-id", args.spreadsheetId], {
       cwd: repoRoot,
