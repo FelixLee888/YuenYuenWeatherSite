@@ -1822,7 +1822,7 @@ async function staticApiRequest(url, options = {}) {
     const resolvedLocation = resolveLocationFromStatic(location, knownLocations);
 
     const daily = buildDailyDataStatic(bundle.report, bundle.history, resolvedLocation);
-    const benchmark = buildBenchmarkDataStatic(bundle.benchmark, resolvedLocation);
+    const benchmark = buildBenchmarkDataStatic(bundle.benchmark, bundle.history, resolvedLocation);
     const history = buildHistoryDataStatic(bundle.history, resolvedLocation);
     const watchlist = buildWatchlistPayloadStatic(bundle);
 
@@ -2026,8 +2026,103 @@ function buildDailyDataStatic(report, history, location) {
   };
 }
 
-function buildBenchmarkDataStatic(benchmark, location) {
-  const sources = Array.isArray(benchmark?.sources) ? benchmark.sources : [];
+function getLatestHistoryScoreRows(history) {
+  const scoreRows = Array.isArray(history?.source_scores) ? history.source_scores : [];
+  const datedRows = scoreRows
+    .filter((row) => `${row?.date || ""}`.trim())
+    .sort((left, right) => `${right?.date || ""}`.localeCompare(`${left?.date || ""}`));
+
+  if (!datedRows.length) {
+    return [];
+  }
+
+  const latestDate = `${datedRows[0]?.date || ""}`;
+  return datedRows.filter((row) => `${row?.date || ""}` === latestDate);
+}
+
+function getLatestHistoryWeightRows(history) {
+  const weightRows = Array.isArray(history?.source_weights) ? history.source_weights : [];
+  const datedRows = weightRows
+    .filter((row) => `${row?.date || ""}`.trim())
+    .sort((left, right) => `${right?.date || ""}`.localeCompare(`${left?.date || ""}`));
+
+  if (!datedRows.length) {
+    return [];
+  }
+
+  const latestDate = `${datedRows[0]?.date || ""}`;
+  return datedRows.filter((row) => `${row?.date || ""}` === latestDate);
+}
+
+function enrichBenchmarkSources(benchmark, history) {
+  const baseSources = Array.isArray(benchmark?.sources) ? benchmark.sources : [];
+  const scoreRows = getLatestHistoryScoreRows(history);
+  const weightRows = getLatestHistoryWeightRows(history);
+  const scoreBySource = new Map(
+    scoreRows.map((row) => [
+      normalizeLocation(row?.source),
+      {
+        latest_confidence: toNumber(row?.confidence),
+        sample_count: toNumber(row?.sample_count),
+        source_label: row?.source_label || row?.source || null
+      }
+    ])
+  );
+  const weightBySource = new Map(
+    weightRows.map((row) => [
+      normalizeLocation(row?.source),
+      {
+        rolling_confidence: toNumber(row?.rolling_confidence),
+        ensemble_weight_pct: toNumber(row?.weight_pct),
+        ensemble_weight: toNumber(row?.weight),
+        lookback_days: toNumber(row?.lookback_days),
+        source_label: row?.source_label || row?.source || null
+      }
+    ])
+  );
+
+  const merged = [];
+  const seen = new Set();
+
+  for (const row of baseSources) {
+    const key = normalizeLocation(row?.source);
+    const scoreFallback = scoreBySource.get(key);
+    const weightFallback = weightBySource.get(key);
+    merged.push({
+      ...row,
+      source_label: row?.source_label || scoreFallback?.source_label || weightFallback?.source_label || row?.source || null,
+      latest_confidence: toNumber(row?.latest_confidence) ?? scoreFallback?.latest_confidence ?? null,
+      sample_count: toNumber(row?.sample_count) ?? scoreFallback?.sample_count ?? null,
+      rolling_confidence: toNumber(row?.rolling_confidence) ?? weightFallback?.rolling_confidence ?? null,
+      ensemble_weight_pct: toNumber(row?.ensemble_weight_pct) ?? weightFallback?.ensemble_weight_pct ?? null,
+      ensemble_weight: toNumber(row?.ensemble_weight) ?? weightFallback?.ensemble_weight ?? null,
+      lookback_days: toNumber(row?.lookback_days) ?? weightFallback?.lookback_days ?? row?.lookback_days ?? null
+    });
+    seen.add(key);
+  }
+
+  for (const [key, scoreFallback] of scoreBySource.entries()) {
+    if (seen.has(key)) {
+      continue;
+    }
+    const weightFallback = weightBySource.get(key);
+    merged.push({
+      source: scoreFallback?.source || key,
+      source_label: scoreFallback?.source_label || weightFallback?.source_label || key,
+      latest_confidence: scoreFallback?.latest_confidence ?? null,
+      sample_count: scoreFallback?.sample_count ?? null,
+      rolling_confidence: weightFallback?.rolling_confidence ?? null,
+      ensemble_weight_pct: weightFallback?.ensemble_weight_pct ?? null,
+      ensemble_weight: weightFallback?.ensemble_weight ?? null,
+      lookback_days: weightFallback?.lookback_days ?? null
+    });
+  }
+
+  return merged;
+}
+
+function buildBenchmarkDataStatic(benchmark, history, location) {
+  const sources = enrichBenchmarkSources(benchmark, history);
   if (!sources.length) {
     return {
       location,
@@ -2057,9 +2152,9 @@ function buildBenchmarkDataStatic(benchmark, location) {
     score: topConfidence,
     delta: topConfidence !== null && averageConfidence !== null ? topConfidence - averageConfidence : null,
     source: topSource?.source_label || topSource?.source || null,
-    generated_at_utc: benchmark?.generated_at_utc || null,
-    run_date: benchmark?.run_date || null,
-    lookback_days: benchmark?.lookback_days || null,
+    generated_at_utc: benchmark?.generated_at_utc || history?.generated_at_utc || null,
+    run_date: benchmark?.run_date || history?.run_date || null,
+    lookback_days: benchmark?.lookback_days || history?.window_days || null,
     sources
   };
 }
