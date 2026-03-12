@@ -130,17 +130,6 @@ function bindEvents() {
       return;
     }
 
-    const deleteTrigger = getDeleteTrigger(event);
-    if (deleteTrigger) {
-      event.preventDefault();
-      event.stopPropagation();
-      const location = (deleteTrigger.getAttribute("data-delete-location") || "").trim();
-      if (location) {
-        await deleteLocation(location);
-      }
-      return;
-    }
-
     const button = getLocationButton(event);
     if (!button) {
       return;
@@ -445,13 +434,6 @@ function renderLocationCards() {
         </div>
         <div class="location-head-actions">
           <p class="location-time">${escapeHtml(formatTimeOnly(updatedAt))}</p>
-          <span
-            class="location-delete-btn"
-            data-delete-location="${escapeHtml(location)}"
-            role="button"
-            aria-label="Delete ${escapeHtml(location)} from watch list"
-            title="Delete from watch list"
-          >×</span>
         </div>
       </div>
       <div class="location-main">
@@ -1438,15 +1420,6 @@ function getLocationButton(event) {
   }
 
   return target.closest("button[data-location]");
-}
-
-function getDeleteTrigger(event) {
-  const target = event.target;
-  if (!(target instanceof HTMLElement)) {
-    return null;
-  }
-
-  return target.closest("[data-delete-location]");
 }
 
 function resolveCountryForLocation(location) {
