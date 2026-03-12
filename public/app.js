@@ -720,7 +720,15 @@ function renderDetail(payload) {
   elements.selectedUpdated.textContent = `Weather for ${formatWeatherDateLong(weatherDate)}`;
 
   if (elements.detailConditionIcon) {
-    const detailIcon = pickDetailWeatherIcon(condition, updatedAt);
+    const detailIcon = pickForecastWeatherIcon({
+      condition,
+      dateTime: updatedAt,
+      rainChance: rainfall,
+      wind,
+      temperature: temp,
+      low,
+      high
+    });
     elements.detailConditionIcon.src = detailIcon.src;
     elements.detailConditionIcon.alt = detailIcon.alt;
   }
@@ -884,7 +892,15 @@ function renderNext7Forecast(dailyPayload, historyPayload, location) {
     const card = document.createElement("article");
     card.className = "next7-card";
 
-    const icon = pickDetailWeatherIcon(row.condition, `${row.date}T12:00:00`);
+    const icon = pickForecastWeatherIcon({
+      condition: row.condition,
+      dateTime: row?.date ? `${row.date}T12:00:00` : null,
+      rainChance: row.rainChance,
+      wind: row.wind,
+      temperature: row.temperature,
+      low: row.low,
+      high: row.high
+    });
     const sourceCountText = `${row.sourceCount} src${row.sourceCount === 1 ? "" : "s"}`;
     const conditionText = row.condition ? shortText(row.condition, 92) : "Forecast summary not available.";
     const windDirection = row.windDirection ? ` ${row.windDirection}` : "";
@@ -2756,6 +2772,57 @@ function pickDetailWeatherIcon(condition, updatedAt) {
   }
 
   return { src: DETAIL_WEATHER_ICON_SET2.fallback, alt: "Current weather" };
+}
+
+function pickForecastWeatherIcon(input) {
+  const source = toObject(input) || {};
+  const condition = `${source.condition || ""}`;
+  const conditionLower = condition.toLowerCase();
+  const dateTime = source.dateTime || null;
+
+  const hasSpecificCondition = /thunder|lightning|storm|tornado|cyclone|hurricane|rain|shower|drizzle|snow|sleet|ice|frost|hail|wind|gust|gale|overcast|cloud|fog|mist|haze|clear|sun/.test(
+    conditionLower
+  );
+  if (hasSpecificCondition) {
+    return pickDetailWeatherIcon(condition, dateTime);
+  }
+
+  const rainChance = normalizeRainfallChance(source.rainChance);
+  const wind = toNumber(source.wind);
+  const temperature = toNumber(source.temperature);
+  const low = toNumber(source.low);
+  const high = toNumber(source.high);
+
+  if (rainChance !== null) {
+    if (rainChance >= 85) {
+      return { src: DETAIL_WEATHER_ICON_SET2.heavyRain, alt: "Heavy rain forecast" };
+    }
+    if (rainChance >= 60) {
+      return { src: DETAIL_WEATHER_ICON_SET2.rain, alt: "Rain forecast" };
+    }
+  }
+
+  if (
+    (high !== null && high <= 0) ||
+    (temperature !== null && temperature <= 0) ||
+    (low !== null && low <= -2)
+  ) {
+    return { src: DETAIL_WEATHER_ICON_SET2.cold, alt: "Cold forecast" };
+  }
+
+  if (wind !== null && wind >= 45) {
+    return { src: DETAIL_WEATHER_ICON_SET2.wind, alt: "Windy forecast" };
+  }
+
+  if (rainChance !== null && rainChance >= 35) {
+    return { src: DETAIL_WEATHER_ICON_SET2.cloud, alt: "Cloudy forecast" };
+  }
+
+  if (isLikelyNightTime(dateTime)) {
+    return { src: DETAIL_WEATHER_ICON_SET2.clearNight, alt: "Clear night forecast" };
+  }
+
+  return { src: DETAIL_WEATHER_ICON_SET2.clearDay, alt: "Clear forecast" };
 }
 
 function isLikelyNightTime(value) {
