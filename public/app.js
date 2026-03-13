@@ -54,6 +54,19 @@ const DETAIL_WEATHER_ICON_SET2 = {
   fallback: "./asset/weather-icons-set2/svg/weather_icon_set2_16.svg"
 };
 
+const CARD_WEATHER_ICON_SET = {
+  thunder: "./asset/weather-icons/svg/weather_icon_13.svg",
+  storm: "./asset/weather-icons/svg/weather_icon_18.svg",
+  rain: "./asset/weather-icons/svg/weather_icon_14.svg",
+  heavyRain: "./asset/weather-icons/svg/weather_icon_15.svg",
+  cold: "./asset/weather-icons/svg/weather_icon_20.svg",
+  wind: "./asset/weather-icons/svg/weather_icon_17.svg",
+  cloud: "./asset/weather-icons/svg/weather_icon_12.svg",
+  clearDay: "./asset/weather-icons/svg/weather_icon_04.svg",
+  clearNight: "./asset/weather-icons/svg/weather_icon_03.svg",
+  fallback: "./asset/weather-icons/svg/weather_icon_23.svg"
+};
+
 const APP_BASE_URL = new URL("./", window.location.href);
 const LOCAL_WATCHLIST_STORAGE_KEY = "yuen_yuen_weather_watchlist";
 const STATIC_SYNC_UNAVAILABLE = "GitHub Pages mode: AIBot watchlist sync is unavailable.";
@@ -503,7 +516,7 @@ function renderLocationCards() {
       low,
       high
     });
-    const cardIcon = pickForecastWeatherIcon(cardIconInput);
+    const cardIcon = pickForecastWeatherIcon(cardIconInput, CARD_WEATHER_ICON_SET);
 
     const tempValue = toNumber(temp);
     const tone = CARD_TONES[index % CARD_TONES.length];
@@ -2801,51 +2814,51 @@ function getByPath(source, pathExpression) {
   return current;
 }
 
-function pickDetailWeatherIcon(condition, updatedAt) {
+function pickDetailWeatherIcon(condition, updatedAt, iconSet = DETAIL_WEATHER_ICON_SET2) {
   const text = `${condition || ""}`.toLowerCase();
   const isNight = text.includes("night") || isLikelyNightTime(updatedAt);
 
   if (text.includes("thunder") || text.includes("lightning") || text.includes("storm")) {
-    return { src: DETAIL_WEATHER_ICON_SET2.thunder, alt: "Thunderstorm" };
+    return { src: iconSet.thunder, alt: "Thunderstorm" };
   }
 
   if (text.includes("tornado") || text.includes("cyclone") || text.includes("hurricane")) {
-    return { src: DETAIL_WEATHER_ICON_SET2.storm, alt: "Severe storm" };
+    return { src: iconSet.storm, alt: "Severe storm" };
   }
 
   if (text.includes("rain") || text.includes("shower") || text.includes("drizzle")) {
     const heavyRain = text.includes("heavy") || text.includes("intense") || text.includes("downpour");
     return heavyRain
-      ? { src: DETAIL_WEATHER_ICON_SET2.heavyRain, alt: "Heavy rain" }
-      : { src: DETAIL_WEATHER_ICON_SET2.rain, alt: "Rain" };
+      ? { src: iconSet.heavyRain, alt: "Heavy rain" }
+      : { src: iconSet.rain, alt: "Rain" };
   }
 
   if (text.includes("snow") || text.includes("sleet") || text.includes("ice") || text.includes("frost") || text.includes("hail")) {
-    return { src: DETAIL_WEATHER_ICON_SET2.cold, alt: "Cold weather" };
+    return { src: iconSet.cold, alt: "Cold weather" };
   }
 
   if (text.includes("wind") || text.includes("gust") || text.includes("gale")) {
-    return { src: DETAIL_WEATHER_ICON_SET2.wind, alt: "Windy weather" };
+    return { src: iconSet.wind, alt: "Windy weather" };
   }
 
   if (text.includes("overcast") || text.includes("cloud") || text.includes("fog") || text.includes("mist") || text.includes("haze")) {
-    return { src: DETAIL_WEATHER_ICON_SET2.cloud, alt: "Cloudy weather" };
+    return { src: iconSet.cloud, alt: "Cloudy weather" };
   }
 
   if (text.includes("clear") || text.includes("sun")) {
     return isNight
-      ? { src: DETAIL_WEATHER_ICON_SET2.clearNight, alt: "Clear night" }
-      : { src: DETAIL_WEATHER_ICON_SET2.clearDay, alt: "Clear weather" };
+      ? { src: iconSet.clearNight, alt: "Clear night" }
+      : { src: iconSet.clearDay, alt: "Clear weather" };
   }
 
   if (isNight) {
-    return { src: DETAIL_WEATHER_ICON_SET2.clearNight, alt: "Night weather" };
+    return { src: iconSet.clearNight, alt: "Night weather" };
   }
 
-  return { src: DETAIL_WEATHER_ICON_SET2.fallback, alt: "Current weather" };
+  return { src: iconSet.fallback, alt: "Current weather" };
 }
 
-function pickForecastWeatherIcon(input) {
+function pickForecastWeatherIcon(input, iconSet = DETAIL_WEATHER_ICON_SET2) {
   const source = toObject(input) || {};
   const condition = `${source.condition || ""}`;
   const conditionLower = condition.toLowerCase();
@@ -2857,19 +2870,19 @@ function pickForecastWeatherIcon(input) {
   const high = toNumber(source.high);
 
   if (conditionLower.includes("thunder") || conditionLower.includes("lightning") || conditionLower.includes("storm")) {
-    return { src: DETAIL_WEATHER_ICON_SET2.thunder, alt: "Thunderstorm forecast" };
+    return { src: iconSet.thunder, alt: "Thunderstorm forecast" };
   }
 
   if (conditionLower.includes("tornado") || conditionLower.includes("cyclone") || conditionLower.includes("hurricane")) {
-    return { src: DETAIL_WEATHER_ICON_SET2.storm, alt: "Severe storm forecast" };
+    return { src: iconSet.storm, alt: "Severe storm forecast" };
   }
 
   if (rainChance !== null) {
     if (rainChance >= 85) {
-      return { src: DETAIL_WEATHER_ICON_SET2.heavyRain, alt: "Heavy rain forecast" };
+      return { src: iconSet.heavyRain, alt: "Heavy rain forecast" };
     }
     if (rainChance >= 60) {
-      return { src: DETAIL_WEATHER_ICON_SET2.rain, alt: "Rain forecast" };
+      return { src: iconSet.rain, alt: "Rain forecast" };
     }
   }
 
@@ -2878,29 +2891,29 @@ function pickForecastWeatherIcon(input) {
     (temperature !== null && temperature <= 0) ||
     (low !== null && low <= -2)
   ) {
-    return { src: DETAIL_WEATHER_ICON_SET2.cold, alt: "Cold forecast" };
+    return { src: iconSet.cold, alt: "Cold forecast" };
   }
 
   if (wind !== null && wind >= 45) {
-    return { src: DETAIL_WEATHER_ICON_SET2.wind, alt: "Windy forecast" };
+    return { src: iconSet.wind, alt: "Windy forecast" };
   }
 
   if (rainChance !== null && rainChance >= 35) {
-    return { src: DETAIL_WEATHER_ICON_SET2.cloud, alt: "Cloudy forecast" };
+    return { src: iconSet.cloud, alt: "Cloudy forecast" };
   }
 
   const hasSpecificCondition = /rain|shower|drizzle|snow|sleet|ice|frost|hail|wind|gust|gale|overcast|cloud|fog|mist|haze|clear|sun/.test(
     conditionLower
   );
   if (hasSpecificCondition) {
-    return pickDetailWeatherIcon(condition, dateTime);
+    return pickDetailWeatherIcon(condition, dateTime, iconSet);
   }
 
   if (isLikelyNightTime(dateTime)) {
-    return { src: DETAIL_WEATHER_ICON_SET2.clearNight, alt: "Clear night forecast" };
+    return { src: iconSet.clearNight, alt: "Clear night forecast" };
   }
 
-  return { src: DETAIL_WEATHER_ICON_SET2.clearDay, alt: "Clear forecast" };
+  return { src: iconSet.clearDay, alt: "Clear forecast" };
 }
 
 function isLikelyNightTime(value) {
