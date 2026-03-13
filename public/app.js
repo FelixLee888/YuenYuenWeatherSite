@@ -42,15 +42,17 @@ const HISTORY_METRIC_CONFIG = {
 };
 
 const DETAIL_WEATHER_ICON_SET2 = {
-  thunder: "./asset/weather-icons-set2/svg/weather_icon_set2_07.svg",
-  storm: "./asset/weather-icons-set2/svg/weather_icon_set2_12.svg",
-  rain: "./asset/weather-icons-set2/svg/weather_icon_set2_01.svg",
-  heavyRain: "./asset/weather-icons-set2/svg/weather_icon_set2_08.svg",
-  cold: "./asset/weather-icons-set2/svg/weather_icon_set2_21.svg",
+  thunder: "./asset/weather-icons-set2/svg/weather_icon_set2_08.svg",
+  storm: "./asset/weather-icons-set2/svg/weather_icon_set2_07.svg",
+  rain: "./asset/weather-icons-set2/svg/weather_icon_set2_21.svg",
+  rainNight: "./asset/weather-icons-set2/svg/weather_icon_set2_20.svg",
+  heavyRain: "./asset/weather-icons-set2/svg/weather_icon_set2_01.svg",
+  cold: "./asset/weather-icons-set2/svg/weather_icon_set2_13.svg",
+  snow: "./asset/weather-icons-set2/svg/weather_icon_set2_13.svg",
   wind: "./asset/weather-icons-set2/svg/weather_icon_set2_15.svg",
-  cloud: "./asset/weather-icons-set2/svg/weather_icon_set2_13.svg",
+  cloud: "./asset/weather-icons-set2/svg/weather_icon_set2_16.svg",
   clearDay: "./asset/weather-icons-set2/svg/weather_icon_set2_22.svg",
-  clearNight: "./asset/weather-icons-set2/svg/weather_icon_set2_03.svg",
+  clearNight: "./asset/weather-icons-set2/svg/weather_icon_set2_18.svg",
   fallback: "./asset/weather-icons-set2/svg/weather_icon_set2_16.svg"
 };
 
@@ -2826,14 +2828,18 @@ function pickDetailWeatherIcon(condition, updatedAt, iconSet = DETAIL_WEATHER_IC
     return { src: iconSet.storm, alt: "Severe storm" };
   }
 
+  if (text.includes("snow") || text.includes("sleet") || text.includes("blizzard") || text.includes("hail")) {
+    return { src: iconSet.snow, alt: "Snow" };
+  }
+
   if (text.includes("rain") || text.includes("shower") || text.includes("drizzle")) {
     const heavyRain = text.includes("heavy") || text.includes("intense") || text.includes("downpour");
     return heavyRain
       ? { src: iconSet.heavyRain, alt: "Heavy rain" }
-      : { src: iconSet.rain, alt: "Rain" };
+      : { src: isNight && iconSet.rainNight ? iconSet.rainNight : iconSet.rain, alt: "Rain" };
   }
 
-  if (text.includes("snow") || text.includes("sleet") || text.includes("ice") || text.includes("frost") || text.includes("hail")) {
+  if (text.includes("ice") || text.includes("frost") || text.includes("freez")) {
     return { src: iconSet.cold, alt: "Cold weather" };
   }
 
@@ -2863,11 +2869,17 @@ function pickForecastWeatherIcon(input, iconSet = DETAIL_WEATHER_ICON_SET2) {
   const condition = `${source.condition || ""}`;
   const conditionLower = condition.toLowerCase();
   const dateTime = source.dateTime || null;
+  const isNight = isLikelyNightTime(dateTime);
   const rainChance = normalizeRainfallChance(source.rainChance);
   const wind = toNumber(source.wind);
   const temperature = toNumber(source.temperature);
   const low = toNumber(source.low);
   const high = toNumber(source.high);
+  const freezing = (
+    (high !== null && high <= 1) ||
+    (temperature !== null && temperature <= 0) ||
+    (low !== null && low <= -2)
+  );
 
   if (conditionLower.includes("thunder") || conditionLower.includes("lightning") || conditionLower.includes("storm")) {
     return { src: iconSet.thunder, alt: "Thunderstorm forecast" };
@@ -2877,20 +2889,27 @@ function pickForecastWeatherIcon(input, iconSet = DETAIL_WEATHER_ICON_SET2) {
     return { src: iconSet.storm, alt: "Severe storm forecast" };
   }
 
+  if (conditionLower.includes("snow") || conditionLower.includes("sleet") || conditionLower.includes("blizzard") || conditionLower.includes("hail")) {
+    return { src: iconSet.snow, alt: "Snow forecast" };
+  }
+
+  if (conditionLower.includes("ice") || conditionLower.includes("frost") || conditionLower.includes("freez")) {
+    return { src: iconSet.cold, alt: "Cold forecast" };
+  }
+
   if (rainChance !== null) {
+    if (freezing && rainChance >= 35) {
+      return { src: iconSet.snow, alt: "Snow forecast" };
+    }
     if (rainChance >= 85) {
       return { src: iconSet.heavyRain, alt: "Heavy rain forecast" };
     }
     if (rainChance >= 60) {
-      return { src: iconSet.rain, alt: "Rain forecast" };
+      return { src: isNight && iconSet.rainNight ? iconSet.rainNight : iconSet.rain, alt: "Rain forecast" };
     }
   }
 
-  if (
-    (high !== null && high <= 0) ||
-    (temperature !== null && temperature <= 0) ||
-    (low !== null && low <= -2)
-  ) {
+  if (freezing) {
     return { src: iconSet.cold, alt: "Cold forecast" };
   }
 
