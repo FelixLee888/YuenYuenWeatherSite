@@ -62,6 +62,7 @@ const CARD_WEATHER_ICON_SET = {
   rain: "./asset/weather-icons/svg/weather_icon_14.svg",
   heavyRain: "./asset/weather-icons/svg/weather_icon_15.svg",
   cold: "./asset/weather-icons/svg/weather_icon_20.svg",
+  snow: "./asset/weather-icons/svg/weather_icon_20.svg",
   wind: "./asset/weather-icons/svg/weather_icon_17.svg",
   cloud: "./asset/weather-icons/svg/weather_icon_12.svg",
   clearDay: "./asset/weather-icons/svg/weather_icon_04.svg",
