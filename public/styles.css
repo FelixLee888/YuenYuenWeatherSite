@@ -479,6 +479,13 @@ main {
   font-size: 1.45rem;
 }
 
+.weather-icon-image {
+  width: 2.2rem;
+  height: 2.2rem;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 .location-temp {
   margin: 0;
   font-size: clamp(1.9rem, 2.8vw, 2.45rem);
@@ -1619,6 +1626,11 @@ main {
 
   .weather-icon {
     font-size: 1rem;
+  }
+
+  .weather-icon-image {
+    width: 1.72rem;
+    height: 1.72rem;
   }
 
   .location-temp {

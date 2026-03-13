@@ -484,6 +484,7 @@ function renderLocationCards() {
 
     const daily = toObject(payload?.data?.daily);
     const benchmark = toObject(payload?.data?.benchmark);
+    const history = toObject(payload?.data?.history);
 
     const condition = pickValue(daily, ["condition", "summary", "description"]);
     const temp = pickValue(daily, ["temperature", "temp", "temp_c"]);
@@ -493,8 +494,16 @@ function renderLocationCards() {
     const windDirection = pickValue(daily, ["wind_direction", "wind_dir", "wind_bearing", "wind_deg"]);
     const rainChance = pickValue(daily, ["rainfall_chance", "rain_chance", "precip_probability", "precip_chance"]);
     const score = pickValue(benchmark, ["score", "confidence", "latest_confidence"]);
-    const updatedAt = pickValue(daily, ["updated_at", "forecast_date", "date", "timestamp"]);
     const weatherDate = resolveWeatherDate(daily);
+    const cardIconInput = resolveDetailForecastIconInput(daily, history, location, weatherDate, {
+      condition,
+      rainfall: rainChance,
+      wind,
+      temp,
+      low,
+      high
+    });
+    const cardIcon = pickForecastWeatherIcon(cardIconInput);
 
     const tempValue = toNumber(temp);
     const tone = CARD_TONES[index % CARD_TONES.length];
@@ -525,7 +534,7 @@ function renderLocationCards() {
         </div>
       </div>
       <div class="location-main">
-        <span class="weather-icon" aria-hidden="true">${pickWeatherIcon(condition)}</span>
+        <img class="weather-icon weather-icon-image" src="${escapeHtml(cardIcon.src)}" alt="" aria-hidden="true" />
         <p class="location-temp">${escapeHtml(displayTemp)}°C</p>
       </div>
       <p class="location-condition">${escapeHtml(displayCondition)}</p>
@@ -2906,17 +2915,6 @@ function isLikelyNightTime(value) {
 
   const hour = parsed.getHours();
   return hour < 6 || hour >= 18;
-}
-
-function pickWeatherIcon(condition) {
-  const text = `${condition || ""}`.toLowerCase();
-  if (text.includes("thunder")) return "⛈️";
-  if (text.includes("rain") || text.includes("shower")) return "🌧️";
-  if (text.includes("snow") || text.includes("frost") || text.includes("ice")) return "❄️";
-  if (text.includes("wind")) return "🌬️";
-  if (text.includes("cloud") || text.includes("overcast")) return "☁️";
-  if (text.includes("clear") || text.includes("sun")) return "☀️";
-  return "🌤️";
 }
 
 function shortText(value, limit = 80) {
