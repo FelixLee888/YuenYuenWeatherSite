@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Yuen Yuen's Weather</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="./asset/yuen_yuen_icon.png?v=20260310" />
+    <link rel="icon" type="image/png" sizes="16x16" href="./asset/yuen_yuen_icon.png?v=20260310" />
+    <link rel="shortcut icon" href="./asset/yuen_yuen_icon.png?v=20260310" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./asset/yuen_yuen_icon.png?v=20260310" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Sora:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="hero-header" aria-label="Yuen Yuen Weather Banner">
+      <div class="hero-topbar">
+        <div class="brand">
+          <button id="homeBtn" type="button" class="brand-home" title="Back to weather cards" aria-label="Back to weather cards">
+            <img class="brand-icon" src="./asset/yuen_yuen_icon.png" alt="Yuen Yuen icon" />
+          </button>
+          <div class="brand-copy">
+            <h1 class="brand-title">Yuen Yuen Weather</h1>
+          </div>
+        </div>
+        <button id="detailBackBtn" type="button" class="icon-btn detail-back-btn" title="Return to card flow" aria-label="Return to card flow">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M15 18L9 12L15 6" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <section id="overviewPage" class="page overview-page">
+        <p id="statusText" class="status status-hidden" aria-live="polite"></p>
+        <div id="locationGrid" class="location-grid" aria-live="polite"></div>
+      </section>
+
+      <section id="detailPage" class="page detail-page is-hidden">
+        <div id="detailViewport" class="detail-viewport">
+          <div id="detailContent" class="detail-content">
+            <div class="detail-top">
+              <div class="detail-summary">
+                <div class="detail-condition-badge" aria-hidden="true">
+                  <img
+                    id="detailConditionIcon"
+                    class="detail-condition-icon"
+                    src="./asset/weather-icons-set2/svg/weather_icon_set2_16.svg"
+                    alt="Current weather"
+                  />
+                </div>
+                <div class="detail-summary-copy">
+                  <h2 id="selectedLocationName">-</h2>
+                  <p id="selectedUpdated" class="muted">-</p>
+                </div>
+              </div>
+            </div>
+
+            <section class="panel metrics-panel">
+              <article class="metric-brief-card">
+                <h3>Condition</h3>
+                <p id="dailyCondition">-</p>
+              </article>
+              <div class="metrics-grid">
+                <article class="metric-card metric-card-temperature">
+                  <h3>Temperature</h3>
+                  <p id="dailyTemp">-</p>
+                </article>
+                <article class="metric-card metric-card-range">
+                  <h3>Low / High</h3>
+                  <p id="dailyLowHigh">-</p>
+                </article>
+                <article class="metric-card metric-card-wind">
+                  <h3>Wind Speed</h3>
+                  <p id="dailyWind">-</p>
+                </article>
+                <article class="metric-card metric-card-direction">
+                  <h3>Wind Direction</h3>
+                  <p id="dailyWindDirection">-</p>
+                </article>
+                <article class="metric-card metric-card-rain">
+                  <h3>Rain Chance</h3>
+                  <p id="dailyRainfall">-</p>
+                </article>
+                <article class="metric-card metric-card-score">
+                  <h3>Benchmark Score</h3>
+                  <p id="benchmarkScore">-</p>
+                </article>
+                <article class="metric-card metric-card-source">
+                  <h3>Top Source</h3>
+                  <p id="benchmarkSource">-</p>
+                </article>
+              </div>
+            </section>
+
+            <section class="panel next7-panel">
+              <div class="panel-head">
+                <h3>Next 7 Days Forecast</h3>
+                <p id="next7Meta" class="muted">-</p>
+              </div>
+              <div id="next7Grid" class="next7-grid"></div>
+            </section>
+
+            <section class="panel sports-panel">
+              <div class="panel-head">
+                <h3>Sport Activity Recommendation</h3>
+                <p id="sportHint" class="muted">Based on local suitability data</p>
+              </div>
+              <div id="sportGrid" class="sport-grid"></div>
+            </section>
+
+            <section class="panel mwis-panel">
+              <div class="panel-head">
+                <h3>MWIS PDF</h3>
+                <p id="mwisMeta" class="muted">-</p>
+              </div>
+              <div id="mwisLinks" class="mwis-links"></div>
+            </section>
+
+            <section class="panel history-panel">
+              <div class="panel-head history-head">
+                <h3>Historical Trend</h3>
+                <div class="history-head-side">
+                  <div class="history-toggle" role="group" aria-label="Trend metric">
+                    <button id="historyMetricTempBtn" type="button" class="history-toggle-btn is-active" aria-pressed="true">Temp</button>
+                    <button id="historyMetricWindBtn" type="button" class="history-toggle-btn" aria-pressed="false">Wind</button>
+                  </div>
+                  <p id="historyMeta" class="muted">-</p>
+                </div>
+              </div>
+              <div id="historyChart" class="history-chart"></div>
+              <div id="historyLegend" class="history-legend"></div>
+            </section>
+
+            <section class="panel benchmark-panel">
+              <div class="panel-head">
+                <h3>Benchmark Sources</h3>
+                <p id="benchmarkDelta" class="muted">-</p>
+              </div>
+              <div id="benchmarkList" class="benchmark-list"></div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+  <script type="module" src="./app.js"></script>
+</html>
