@@ -15,6 +15,17 @@ const DATA_FILES = {
 };
 
 const SOURCE_BUCKETS = ["configured", "available", "used_for_report", "missing_api_keys", "skipped_errors"];
+const SOURCE_LABELS = {
+  open_meteo: "Open-Meteo",
+  met_no: "MET Norway",
+  met_office: "UK Met Office",
+  openweather: "OpenWeather",
+  google_weather: "Google Weather"
+};
+const SOURCE_MISSING_NOTES = {
+  openweather: "OPENWEATHER_API_KEY missing",
+  google_weather: "GOOGLE_WEATHER_ACCESS_TOKEN or GOOGLE_WEATHER_API_KEY missing"
+};
 
 const TABLE_DEFS = {
   latest_meta: {
@@ -801,7 +812,116 @@ function latestJsonToTables(latest) {
   };
 }
 
-function benchmarksJsonToTables(benchmarks) {
+function normalizeSourceName(value) {
+  return `${value || ""}`.trim();
+}
+
+function getSourceLabel(source) {
+  return SOURCE_LABELS[source] || source;
+}
+
+function buildLatestHistoryRowsBySource(rows, dateField) {
+  const latestBySource = new Map();
+
+  for (const rawRow of Array.isArray(rows) ? rows : []) {
+    const row = rawRow && typeof rawRow === "object" ? rawRow : {};
+    const source = normalizeSourceName(row.source);
+    if (!source) {
+      continue;
+    }
+
+    const dateKey = normalizeDateKey(row?.[dateField]);
+    const current = latestBySource.get(source);
+    const currentDateKey = normalizeDateKey(current?.[dateField]);
+    if (!current || (dateKey && dateKey >= currentDateKey)) {
+      latestBySource.set(source, row);
+    }
+  }
+
+  return latestBySource;
+}
+
+function buildCompleteBenchmarkSourceRows(benchmarks, latest, history) {
+  const benchmarkRows = Array.isArray(benchmarks?.sources) ? benchmarks.sources : [];
+  const latestSources = latest && typeof latest === "object" ? latest.sources || {} : {};
+  const historyPayload = history && typeof history === "object" ? history : {};
+
+  const available = new Set((Array.isArray(latestSources.available) ? latestSources.available : []).map(normalizeSourceName).filter(Boolean));
+  const missingApiKeys = new Set(
+    (Array.isArray(latestSources.missing_api_keys) ? latestSources.missing_api_keys : []).map(normalizeSourceName).filter(Boolean)
+  );
+  const skippedErrors = new Set(
+    (Array.isArray(latestSources.skipped_errors) ? latestSources.skipped_errors : []).map(normalizeSourceName).filter(Boolean)
+  );
+
+  const latestScoreBySource = buildLatestHistoryRowsBySource(historyPayload.source_scores, "date");
+  const latestWeightBySource = buildLatestHistoryRowsBySource(historyPayload.source_weights, "date");
+
+  const orderedSources = [];
+  const seen = new Set();
+  const appendSource = (value) => {
+    const source = normalizeSourceName(value);
+    if (!source || seen.has(source)) {
+      return;
+    }
+    seen.add(source);
+    orderedSources.push(source);
+  };
+
+  for (const row of benchmarkRows) {
+    appendSource(row?.source);
+  }
+
+  for (const bucket of SOURCE_BUCKETS) {
+    for (const source of Array.isArray(latestSources[bucket]) ? latestSources[bucket] : []) {
+      appendSource(source);
+    }
+  }
+
+  for (const source of latestScoreBySource.keys()) {
+    appendSource(source);
+  }
+  for (const source of latestWeightBySource.keys()) {
+    appendSource(source);
+  }
+
+  const benchmarkRowBySource = new Map(
+    benchmarkRows
+      .map((row) => [normalizeSourceName(row?.source), row && typeof row === "object" ? row : {}])
+      .filter(([source]) => Boolean(source))
+  );
+
+  return orderedSources.map((source) => {
+    const row = benchmarkRowBySource.get(source) || {};
+    const latestScore = latestScoreBySource.get(source) || {};
+    const latestWeight = latestWeightBySource.get(source) || {};
+    const runtimeNote =
+      `${row.runtime_note ?? ""}`.trim() ||
+      (missingApiKeys.has(source) ? SOURCE_MISSING_NOTES[source] || "Required provider credential missing" : "");
+
+    return {
+      source,
+      source_label: `${row.source_label ?? ""}`.trim() || getSourceLabel(source),
+      is_available: row.is_available === undefined ? available.has(source) : Boolean(row.is_available),
+      is_missing_api_key: row.is_missing_api_key === undefined ? missingApiKeys.has(source) : Boolean(row.is_missing_api_key),
+      is_skipped_error: row.is_skipped_error === undefined ? skippedErrors.has(source) : Boolean(row.is_skipped_error),
+      runtime_note: runtimeNote,
+      latest_confidence: row.latest_confidence ?? latestScore.confidence ?? null,
+      mae_temp_max: row.mae_temp_max ?? latestScore.mae_temp_max ?? null,
+      mae_temp_min: row.mae_temp_min ?? latestScore.mae_temp_min ?? null,
+      mae_wind_max: row.mae_wind_max ?? latestScore.mae_wind_max ?? null,
+      composite_error: row.composite_error ?? latestScore.composite_error ?? null,
+      sample_count: row.sample_count ?? latestScore.sample_count ?? null,
+      rolling_confidence: row.rolling_confidence ?? latestWeight.rolling_confidence ?? null,
+      rolling_error: row.rolling_error ?? null,
+      rolling_samples: row.rolling_samples ?? null,
+      ensemble_weight: row.ensemble_weight ?? latestWeight.weight ?? null,
+      ensemble_weight_pct: row.ensemble_weight_pct ?? latestWeight.weight_pct ?? null
+    };
+  });
+}
+
+function benchmarksJsonToTables(benchmarks, latest, history) {
   const payload = benchmarks && typeof benchmarks === "object" ? benchmarks : {};
 
   const benchmarksMeta = [
@@ -814,7 +934,7 @@ function benchmarksJsonToTables(benchmarks) {
   ];
 
   const benchmarksSources = [];
-  const sourceRows = Array.isArray(payload.sources) ? payload.sources : [];
+  const sourceRows = buildCompleteBenchmarkSourceRows(payload, latest, history);
   for (let sourceOrder = 0; sourceOrder < sourceRows.length; sourceOrder += 1) {
     const row = sourceRows[sourceOrder] && typeof sourceRows[sourceOrder] === "object" ? sourceRows[sourceOrder] : {};
     benchmarksSources.push({
@@ -1394,7 +1514,7 @@ async function importFromJson(args) {
 
   const tableRows = {
     ...latestJsonToTables(latest),
-    ...benchmarksJsonToTables(benchmarks),
+    ...benchmarksJsonToTables(benchmarks, latest, history),
     ...historyJsonToTables(history)
   };
 
@@ -1547,9 +1667,20 @@ async function verifyRoundtrip(args) {
 
   for (const filename of filenames) {
     const local = await readLocalJson(args.dataDir, filename);
+    const normalizedLocal =
+      filename === DATA_FILES.weather_benchmarks_latest
+        ? {
+            ...local,
+            sources: buildCompleteBenchmarkSourceRows(
+              local,
+              remoteByFile[DATA_FILES.weather_latest_report],
+              remoteByFile[DATA_FILES.weather_history_recent]
+            )
+          }
+        : local;
     const remote = remoteByFile[filename];
 
-    const localBody = JSON.stringify(canonicalize(local));
+    const localBody = JSON.stringify(canonicalize(normalizedLocal));
     const remoteBody = JSON.stringify(canonicalize(remote));
 
     if (localBody !== remoteBody) {
