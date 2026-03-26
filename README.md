@@ -46,6 +46,12 @@ Alternative credentials:
 - `GOOGLE_SERVICE_ACCOUNT_EMAIL`
 - `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`
 
+Optional provider credentials for full source coverage during refresh:
+
+- `OPENWEATHER_API_KEY`
+- `GOOGLE_WEATHER_ACCESS_TOKEN` (preferred)
+- `GOOGLE_WEATHER_API_KEY` (fallback)
+
 ## Run locally
 ```bash
 cd /Users/felixlee/Documents/YuenYuenWeatherSite
