@@ -246,7 +246,7 @@ function bindEvents() {
     renderAdminControls();
   });
 
-  elements.adminSearchResults?.addEventListener("click", (event) => {
+  elements.adminSearchResults?.addEventListener("click", async (event) => {
     const option = event.target instanceof Element ? event.target.closest("button[data-location]") : null;
     if (!option) {
       return;
@@ -257,13 +257,24 @@ function bindEvents() {
       return;
     }
 
-    if (value === state.adminSearch.selectedValue) {
-      void confirmSelectedAdminLocation();
+    const candidate = state.adminSearch.results.find((item) => item.location === value) || null;
+    if (!candidate || state.adminAddInFlight) {
       return;
     }
 
     state.adminSearch.selectedValue = value;
     renderAdminControls();
+
+    if (value !== state.adminSearch.selectedValue) {
+      return;
+    }
+
+    const confirmed = window.confirm(`Add ${candidate.label || candidate.location} to the shared weather watchlist?`);
+    if (!confirmed) {
+      return;
+    }
+
+    await confirmSelectedAdminLocation();
   });
 
   elements.detailBackBtn?.addEventListener("click", () => {
