@@ -130,6 +130,7 @@ const state = {
     debounceId: 0,
     requestId: 0
   },
+  adminAddInFlight: false,
   pendingDeleteLocation: "",
   suppressDeckClickUntil: 0,
   swipe: {
@@ -229,18 +230,12 @@ function bindEvents() {
 
   elements.adminAddLocationForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const candidate = state.adminSearch.results.find((item) => item.location === state.adminSearch.selectedValue) || null;
-    if (!candidate) {
-      setStatus("Choose a suggested city before adding it to the watchlist.", "error");
-      elements.adminLocationInput?.focus();
-      return;
-    }
+    await confirmSelectedAdminLocation();
+  });
 
-    const added = await addLocation(candidate.location, candidate.name);
-    if (added) {
-      clearAdminSearch();
-      closeAdminUi();
-    }
+  elements.adminAddLocationBtn?.addEventListener("click", async (event) => {
+    event.preventDefault();
+    await confirmSelectedAdminLocation();
   });
 
   elements.adminLocationInput?.addEventListener("input", (event) => {
@@ -259,6 +254,11 @@ function bindEvents() {
 
     const value = option.getAttribute("data-location") || "";
     if (!value) {
+      return;
+    }
+
+    if (value === state.adminSearch.selectedValue) {
+      void confirmSelectedAdminLocation();
       return;
     }
 
@@ -514,6 +514,7 @@ async function logoutAdmin() {
 function renderAdminControls() {
   const auth = normalizeAdminAuthPayload(state.adminAuth);
   const hasManageCard = auth.authenticated && auth.user?.email;
+  const selectedCandidate = getSelectedAdminSearchCandidate();
   elements.adminLoginCard?.classList.toggle("is-hidden", hasManageCard);
   elements.adminManageCard?.classList.toggle("is-hidden", !hasManageCard);
   elements.adminPopover?.classList.toggle("is-hidden", !state.adminUiOpen);
@@ -550,7 +551,11 @@ function renderAdminControls() {
   }
 
   if (elements.adminAddLocationBtn) {
-    elements.adminAddLocationBtn.disabled = !hasManageCard || !state.adminSearch.selectedValue || state.adminSearch.searching;
+    elements.adminAddLocationBtn.disabled =
+      !hasManageCard || !selectedCandidate || state.adminSearch.searching || state.adminAddInFlight;
+    elements.adminAddLocationBtn.textContent = selectedCandidate
+      ? `Add ${selectedCandidate.name || getLocationDisplayName(selectedCandidate.location)}`
+      : "Add selected";
   }
 
   if (elements.adminLogoutBtn) {
@@ -680,6 +685,39 @@ function clearAdminSearch() {
     requestId: state.adminSearch.requestId
   };
   renderAdminControls();
+}
+
+function getSelectedAdminSearchCandidate() {
+  return state.adminSearch.results.find((item) => item.location === state.adminSearch.selectedValue) || null;
+}
+
+async function confirmSelectedAdminLocation() {
+  if (state.adminAddInFlight) {
+    return false;
+  }
+
+  const candidate = getSelectedAdminSearchCandidate();
+  if (!candidate) {
+    setStatus("Choose a suggested city before adding it to the watchlist.", "error");
+    elements.adminLocationInput?.focus();
+    return false;
+  }
+
+  state.adminAddInFlight = true;
+  renderAdminControls();
+
+  try {
+    const added = await addLocation(candidate.location, candidate.name);
+    if (added) {
+      clearAdminSearch();
+      closeAdminUi();
+      return true;
+    }
+    return false;
+  } finally {
+    state.adminAddInFlight = false;
+    renderAdminControls();
+  }
 }
 
 function toggleAdminUi(forceOpen) {
