@@ -292,6 +292,10 @@ button:disabled {
   animation: fade-in 0.24s ease both;
 }
 
+.is-hidden {
+  display: none !important;
+}
+
 .page.is-hidden {
   display: none;
 }
@@ -350,6 +354,118 @@ main {
   border-color: #f2b2b2;
   background: #fff3f3;
   color: #a73737;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.admin-section {
+  margin: 0 0 0.62rem;
+}
+
+.admin-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid rgba(173, 197, 230, 0.9);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 16px 34px rgba(20, 40, 70, 0.08);
+  padding: 0.9rem 1rem;
+  backdrop-filter: blur(18px);
+}
+
+.admin-card + .admin-card {
+  margin-top: 0.62rem;
+}
+
+.admin-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-card-copy {
+  min-width: 0;
+}
+
+.admin-kicker {
+  margin: 0 0 0.2rem;
+  font-family: "Sora", "Avenir Next", sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #567197;
+}
+
+.admin-title {
+  margin: 0;
+  font-size: 1rem;
+  font-family: "Sora", "Avenir Next", sans-serif;
+}
+
+.admin-card .muted {
+  margin: 0.28rem 0 0;
+}
+
+.google-signin-wrap {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  min-width: 250px;
+}
+
+.admin-manage-card,
+.admin-add-form {
+  width: 100%;
+}
+
+.admin-card .btn-secondary {
+  white-space: nowrap;
+}
+
+.admin-add-form {
+  margin-top: 0.9rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.62rem;
+  width: 100%;
+}
+
+.admin-input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(173, 197, 230, 0.92);
+  border-radius: 12px;
+  background: rgba(248, 251, 255, 0.96);
+  color: var(--text);
+  font: inherit;
+  padding: 0.78rem 0.88rem;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.admin-input:focus {
+  border-color: rgba(11, 122, 203, 0.92);
+  box-shadow: 0 0 0 3px rgba(11, 122, 203, 0.14);
+  background: #ffffff;
+}
+
+.admin-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
 }
 
 .location-grid {
@@ -1273,6 +1389,22 @@ main {
   .page-head {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .admin-card,
+  .admin-card-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .google-signin-wrap {
+    justify-content: flex-start;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .admin-add-form {
+    grid-template-columns: 1fr;
   }
 
   .location-grid {

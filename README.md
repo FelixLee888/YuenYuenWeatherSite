@@ -32,6 +32,20 @@ Watchlist source-of-truth is Google Sheet tab `weather_watchlist`.
 
 When running `server.js` with Google Sheets credentials configured, API reads come directly from Google Sheets tabular data, and `POST /api/weather/watchlist` writes updates directly to the `weather_watchlist` sheet tab.
 
+## Admin watchlist management
+The admin flow is handled by the Node backend in `server.js`.
+
+- Authentication provider: Google Sign-In
+- Default admin email: `jancefelix@gmail.com`
+- Write target: Google Sheet tab `weather_watchlist`
+- Bot pickup: the Pi bot can keep reading the shared watchlist sheet, and the backend can also notify `AIBOT_WATCHLIST_SYNC_URL` after a new location is added
+
+Important:
+
+- GitHub Pages is static-only, so secure Google-login watchlist writes are not available there by themselves
+- The admin controls become active only when the site is served through `server.js` (or another trusted backend host running the same API)
+- In static Pages mode, the UI shows admin mode as unavailable instead of pretending to save shared watchlist changes locally
+
 ## Environment
 Copy `.env.example` to `.env` and set credentials if you run Sheet sync locally.
 
@@ -40,6 +54,16 @@ Required for Sheet sync:
 - `GOOGLE_SHEETS_SPREADSHEET_ID`
 - `GOOGLE_SERVICE_ACCOUNT_JSON`
 - `GOOGLE_SHEETS_ENABLED=1`
+
+Required for admin login:
+
+- `GOOGLE_CLIENT_ID` (Google OAuth web client id for the site/backend origin)
+- `ADMIN_ALLOWED_EMAILS` (comma-separated list, defaults to `jancefelix@gmail.com`)
+
+Optional for admin login:
+
+- `ADMIN_SESSION_SECRET`
+- `ADMIN_SESSION_TTL_MS`
 
 Alternative credentials:
 
@@ -89,9 +113,13 @@ Workflows:
 ## API endpoints
 - `GET /health`
 - `GET /api/config`
+- `GET /api/admin/session`
+- `POST /api/admin/google-login` with JSON body: `{ "credential": "<google-id-token>" }`
+- `POST /api/admin/logout`
 - `GET /api/weather?location=<name>`
 - `GET /api/weather/daily?location=<name>`
 - `GET /api/weather/benchmark?location=<name>`
 - `GET /api/weather/history?location=<name>`
 - `GET /api/weather/watchlist`
-- `POST /api/weather/watchlist` with JSON body: `{ "location": "Tokyo" }`
+- `POST /api/weather/watchlist` with JSON body: `{ "location": "Tokyo" }` (admin login required)
+- `DELETE /api/weather/watchlist` with JSON body: `{ "location": "Tokyo" }` (admin login required)

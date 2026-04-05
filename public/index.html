@@ -27,16 +27,56 @@
             <h1 class="brand-title">Yuen Yuen Weather</h1>
           </div>
         </div>
-        <button id="detailBackBtn" type="button" class="icon-btn detail-back-btn" title="Return to card flow" aria-label="Return to card flow">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M15 18L9 12L15 6" />
-          </svg>
-        </button>
+        <div class="topbar-actions">
+          <button id="detailBackBtn" type="button" class="icon-btn detail-back-btn" title="Return to card flow" aria-label="Return to card flow">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M15 18L9 12L15 6" />
+            </svg>
+          </button>
+        </div>
       </div>
     </header>
 
     <main>
       <section id="overviewPage" class="page overview-page">
+        <section id="adminSection" class="admin-section is-hidden" aria-label="Admin controls">
+          <article id="adminLoginCard" class="admin-card is-hidden">
+            <div class="admin-card-copy">
+              <p class="admin-kicker">Admin</p>
+              <h2 class="admin-title">Watchlist Manager</h2>
+              <p id="adminIntro" class="muted">Sign in with Google to add new locations to the shared watchlist.</p>
+            </div>
+            <div id="googleSigninWrap" class="google-signin-wrap" aria-live="polite"></div>
+          </article>
+
+          <article id="adminManageCard" class="admin-card is-hidden">
+            <div class="admin-card-top">
+              <div class="admin-card-copy">
+                <p class="admin-kicker">Admin</p>
+                <h2 class="admin-title">Watchlist Manager</h2>
+                <p id="adminSignedInAs" class="muted">Signed in as -</p>
+              </div>
+              <button id="adminLogoutBtn" type="button" class="btn-secondary admin-logout-btn">Sign out</button>
+            </div>
+
+            <form id="adminAddLocationForm" class="admin-add-form">
+              <label class="sr-only" for="adminLocationInput">New location</label>
+              <input
+                id="adminLocationInput"
+                class="admin-input"
+                type="text"
+                name="location"
+                placeholder="Add a new location"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <button id="adminAddLocationBtn" type="submit">Add location</button>
+            </form>
+
+            <p id="adminHelperText" class="muted">Adds to the shared Google Sheet watchlist. The Pi bot will pick up the new location from that sheet.</p>
+          </article>
+        </section>
+
         <p id="statusText" class="status status-hidden" aria-live="polite"></p>
         <div id="locationGrid" class="location-grid" aria-live="polite"></div>
       </section>

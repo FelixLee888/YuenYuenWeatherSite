@@ -19,6 +19,7 @@ const GRADE_TO_SCORE = {
 };
 
 const LOCATION_COUNTRY_BY_NAME = {
+  aberdeen: "United Kingdom",
   glencoe: "United Kingdom",
   "ben nevis": "United Kingdom",
   glenshee: "United Kingdom",
@@ -26,6 +27,23 @@ const LOCATION_COUNTRY_BY_NAME = {
   paisley: "United Kingdom",
   "passo del tonale": "Italy"
 };
+
+const COUNTRY_BOUNDS = [
+  { country: "United Kingdom", latMin: 49.5, latMax: 61.2, lonMin: -8.8, lonMax: 2.2 },
+  { country: "Ireland", latMin: 51.2, latMax: 55.8, lonMin: -10.9, lonMax: -5.0 },
+  { country: "Italy", latMin: 35.0, latMax: 47.5, lonMin: 6.0, lonMax: 19.2 },
+  { country: "France", latMin: 41.0, latMax: 51.5, lonMin: -5.8, lonMax: 9.8 },
+  { country: "Spain", latMin: 35.0, latMax: 44.5, lonMin: -9.8, lonMax: 4.5 },
+  { country: "Portugal", latMin: 36.8, latMax: 42.4, lonMin: -9.7, lonMax: -6.0 },
+  { country: "Germany", latMin: 47.0, latMax: 55.4, lonMin: 5.4, lonMax: 15.6 },
+  { country: "Switzerland", latMin: 45.6, latMax: 47.9, lonMin: 5.8, lonMax: 10.7 },
+  { country: "Austria", latMin: 46.2, latMax: 49.2, lonMin: 9.4, lonMax: 17.3 },
+  { country: "Norway", latMin: 57.5, latMax: 71.5, lonMin: 4.0, lonMax: 31.5 },
+  { country: "United States", latMin: 24.0, latMax: 49.8, lonMin: -125.0, lonMax: -66.5 },
+  { country: "Canada", latMin: 41.5, latMax: 83.5, lonMin: -141.5, lonMax: -52.0 },
+  { country: "Australia", latMin: -44.5, latMax: -10.0, lonMin: 112.0, lonMax: 154.5 },
+  { country: "New Zealand", latMin: -47.8, latMax: -34.0, lonMin: 166.0, lonMax: 179.9 }
+];
 
 const MWIS_REGION_CODES_BY_LOCATION = {
   glencoe: ["wh", "nw"],
@@ -71,13 +89,15 @@ const CARD_WEATHER_ICON_SET = {
 };
 
 const APP_BASE_URL = new URL("./", window.location.href);
-const LOCAL_WATCHLIST_STORAGE_KEY = "yuen_yuen_weather_watchlist";
 const STATIC_SYNC_UNAVAILABLE = "GitHub Pages mode: AIBot watchlist sync is unavailable.";
+const STATIC_ADMIN_UNAVAILABLE = "Admin controls are unavailable in GitHub Pages mode.";
 const SWIPE_MIN_DISTANCE_PX = 44;
 const SWIPE_DIRECTION_RATIO = 1.2;
 const SWIPE_CLICK_SUPPRESS_MS = 420;
+const DEFAULT_ADMIN_EMAIL = "jancefelix@gmail.com";
 
 let staticBundleCache = null;
+let googleIdentityScriptPromise = null;
 
 const state = {
   locations: [],
@@ -88,6 +108,18 @@ const state = {
   historyTrendModel: null,
   isMobileLayout: false,
   isTransitioningDetail: false,
+  appConfig: null,
+  adminAuth: {
+    enabled: false,
+    provider: "google",
+    googleClientId: "",
+    defaultAdminEmail: DEFAULT_ADMIN_EMAIL,
+    allowedAdminEmails: [DEFAULT_ADMIN_EMAIL],
+    authenticated: false,
+    user: null,
+    reason: ""
+  },
+  googleIdentityInitializedClientId: "",
   suppressDeckClickUntil: 0,
   swipe: {
     tracking: false,
@@ -108,6 +140,17 @@ const elements = {
   homeBtn: document.getElementById("homeBtn"),
   statusText: document.getElementById("statusText"),
   overviewPage: document.getElementById("overviewPage"),
+  adminSection: document.getElementById("adminSection"),
+  adminLoginCard: document.getElementById("adminLoginCard"),
+  adminManageCard: document.getElementById("adminManageCard"),
+  adminIntro: document.getElementById("adminIntro"),
+  googleSigninWrap: document.getElementById("googleSigninWrap"),
+  adminSignedInAs: document.getElementById("adminSignedInAs"),
+  adminLogoutBtn: document.getElementById("adminLogoutBtn"),
+  adminAddLocationForm: document.getElementById("adminAddLocationForm"),
+  adminLocationInput: document.getElementById("adminLocationInput"),
+  adminAddLocationBtn: document.getElementById("adminAddLocationBtn"),
+  adminHelperText: document.getElementById("adminHelperText"),
   detailPage: document.getElementById("detailPage"),
   detailViewport: document.getElementById("detailViewport"),
   detailContent: document.getElementById("detailContent"),
@@ -153,6 +196,25 @@ function setHeaderDetailState(isDetail) {
 function bindEvents() {
   elements.homeBtn.addEventListener("click", () => {
     showOverviewPage();
+  });
+
+  elements.adminLogoutBtn?.addEventListener("click", async () => {
+    await logoutAdmin();
+  });
+
+  elements.adminAddLocationForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const location = `${elements.adminLocationInput?.value || ""}`.trim();
+    if (!location) {
+      setStatus("Enter a location to add to the shared watchlist.", "error");
+      elements.adminLocationInput?.focus();
+      return;
+    }
+
+    const added = await addLocation(location);
+    if (added && elements.adminLocationInput) {
+      elements.adminLocationInput.value = "";
+    }
   });
 
   elements.detailBackBtn?.addEventListener("click", () => {
@@ -236,6 +298,8 @@ function bindEvents() {
 async function initialize() {
   state.isMobileLayout = isMobileViewport();
   setHeaderDetailState(false);
+  await loadAppConfig();
+  await refreshAdminSession();
   await loadOverview();
 
   const queryLocation = (new URLSearchParams(window.location.search).get("location") || "").trim();
@@ -245,6 +309,226 @@ async function initialize() {
       await openDetailPage(matched, { animate: false });
     }
   }
+}
+
+function normalizeAdminAuthPayload(payload) {
+  const source = toObject(payload) || {};
+  const allowedAdminEmails = Array.isArray(source.allowedAdminEmails)
+    ? source.allowedAdminEmails.map((item) => `${item || ""}`.trim()).filter(Boolean)
+    : [];
+
+  const defaultAdminEmail = `${source.defaultAdminEmail || DEFAULT_ADMIN_EMAIL}`.trim() || DEFAULT_ADMIN_EMAIL;
+
+  return {
+    enabled: Boolean(source.enabled),
+    provider: `${source.provider || "google"}`.trim() || "google",
+    googleClientId: `${source.googleClientId || ""}`.trim(),
+    defaultAdminEmail,
+    allowedAdminEmails: allowedAdminEmails.length ? allowedAdminEmails : [defaultAdminEmail],
+    authenticated: Boolean(source.authenticated),
+    user: toObject(source.user)
+      ? {
+          email: `${source.user.email || ""}`.trim(),
+          name: `${source.user.name || source.user.email || ""}`.trim(),
+          picture: `${source.user.picture || ""}`.trim() || null
+        }
+      : null,
+    reason: `${source.reason || ""}`.trim()
+  };
+}
+
+async function loadAppConfig() {
+  const result = await apiRequest("/api/config");
+  if (result.ok) {
+    state.appConfig = result;
+    const auth = normalizeAdminAuthPayload(result.auth);
+    state.adminAuth = {
+      ...state.adminAuth,
+      ...auth
+    };
+  } else {
+    state.appConfig = {
+      mode: "public/data",
+      dataDir: "public/data",
+      auth: normalizeAdminAuthPayload({
+        enabled: false,
+        provider: "google",
+        defaultAdminEmail: DEFAULT_ADMIN_EMAIL,
+        allowedAdminEmails: [DEFAULT_ADMIN_EMAIL],
+        reason: STATIC_ADMIN_UNAVAILABLE
+      })
+    };
+    state.adminAuth = state.appConfig.auth;
+  }
+
+  renderAdminControls();
+}
+
+async function refreshAdminSession() {
+  const result = await apiRequest("/api/admin/session");
+  if (result.ok) {
+    state.adminAuth = normalizeAdminAuthPayload(result.data);
+  } else {
+    state.adminAuth = normalizeAdminAuthPayload(state.appConfig?.auth);
+  }
+
+  renderAdminControls();
+  await ensureGoogleIdentityReady();
+}
+
+async function logoutAdmin() {
+  setLoading(true);
+  const result = await apiRequest("/api/admin/logout", { method: "POST" });
+  setLoading(false);
+
+  if (!result.ok) {
+    setStatus(result.error || "Unable to sign out.", "error");
+    return;
+  }
+
+  if (window.google?.accounts?.id?.disableAutoSelect) {
+    window.google.accounts.id.disableAutoSelect();
+  }
+
+  state.adminAuth = normalizeAdminAuthPayload(result.data);
+  renderAdminControls();
+  await ensureGoogleIdentityReady();
+  setStatus("Signed out from admin mode.", "success");
+}
+
+function renderAdminControls() {
+  const auth = normalizeAdminAuthPayload(state.adminAuth);
+  const hasManageCard = auth.authenticated && auth.user?.email;
+
+  if (!elements.adminSection) {
+    return;
+  }
+
+  const showSection = auth.enabled || Boolean(auth.reason) || Boolean(auth.authenticated);
+  elements.adminSection.classList.toggle("is-hidden", !showSection);
+  elements.adminLoginCard?.classList.toggle("is-hidden", hasManageCard);
+  elements.adminManageCard?.classList.toggle("is-hidden", !hasManageCard);
+
+  if (elements.adminIntro) {
+    if (auth.enabled) {
+      elements.adminIntro.textContent = `Sign in with Google as ${auth.defaultAdminEmail} to add new locations to the shared watchlist.`;
+    } else {
+      elements.adminIntro.textContent = auth.reason || STATIC_ADMIN_UNAVAILABLE;
+    }
+  }
+
+  if (elements.adminSignedInAs) {
+    elements.adminSignedInAs.textContent = auth.user?.email
+      ? `Signed in as ${auth.user.email}`
+      : `Signed in as ${auth.defaultAdminEmail}`;
+  }
+
+  if (elements.adminHelperText) {
+    elements.adminHelperText.textContent = auth.enabled
+      ? "Adds to the shared Google Sheet watchlist. The Pi bot will pick up the new location from that sheet."
+      : auth.reason || STATIC_ADMIN_UNAVAILABLE;
+  }
+
+  if (elements.adminLocationInput) {
+    elements.adminLocationInput.disabled = !hasManageCard;
+  }
+
+  if (elements.adminAddLocationBtn) {
+    elements.adminAddLocationBtn.disabled = !hasManageCard;
+  }
+
+  if (elements.adminLogoutBtn) {
+    elements.adminLogoutBtn.disabled = !hasManageCard;
+  }
+
+  if (elements.googleSigninWrap) {
+    elements.googleSigninWrap.classList.toggle("is-hidden", !auth.enabled || hasManageCard);
+  }
+}
+
+function loadGoogleIdentityScript() {
+  if (googleIdentityScriptPromise) {
+    return googleIdentityScriptPromise;
+  }
+
+  googleIdentityScriptPromise = new Promise((resolve, reject) => {
+    if (window.google?.accounts?.id) {
+      resolve(window.google);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve(window.google);
+    script.onerror = () => reject(new Error("Unable to load Google Identity Services."));
+    document.head.appendChild(script);
+  });
+
+  return googleIdentityScriptPromise;
+}
+
+async function ensureGoogleIdentityReady() {
+  const auth = normalizeAdminAuthPayload(state.adminAuth);
+  if (!auth.enabled || auth.authenticated || !elements.googleSigninWrap) {
+    return;
+  }
+
+  try {
+    await loadGoogleIdentityScript();
+    if (!window.google?.accounts?.id) {
+      throw new Error("Google Identity Services is unavailable.");
+    }
+
+    if (state.googleIdentityInitializedClientId !== auth.googleClientId) {
+      window.google.accounts.id.initialize({
+        client_id: auth.googleClientId,
+        callback: handleGoogleIdentityCredentialResponse,
+        auto_select: false,
+        cancel_on_tap_outside: true
+      });
+      state.googleIdentityInitializedClientId = auth.googleClientId;
+    }
+
+    elements.googleSigninWrap.innerHTML = "";
+    window.google.accounts.id.renderButton(elements.googleSigninWrap, {
+      theme: "outline",
+      size: "large",
+      shape: "pill",
+      text: "signin_with",
+      logo_alignment: "left",
+      width: 250
+    });
+  } catch (error) {
+    if (elements.adminIntro) {
+      elements.adminIntro.textContent = error?.message || "Unable to load Google sign-in.";
+    }
+  }
+}
+
+async function handleGoogleIdentityCredentialResponse(response) {
+  const credential = `${response?.credential || ""}`.trim();
+  if (!credential) {
+    setStatus("Google login did not return a credential.", "error");
+    return;
+  }
+
+  setLoading(true);
+  const result = await apiRequest("/api/admin/google-login", {
+    method: "POST",
+    body: JSON.stringify({ credential })
+  });
+  setLoading(false);
+
+  if (!result.ok) {
+    setStatus(result.error || "Unable to sign in with Google.", "error");
+    return;
+  }
+
+  state.adminAuth = normalizeAdminAuthPayload(result.data);
+  renderAdminControls();
+  setStatus(`Admin mode enabled for ${state.adminAuth.user?.email || "Google account"}.`, "success");
 }
 
 async function loadOverview() {
@@ -331,13 +615,17 @@ async function addLocation(location) {
   });
 
   if (!result.ok) {
+    if (result.status === 401) {
+      await refreshAdminSession();
+    }
     setLoading(false);
     setStatus(result.error || `Unable to add ${location}.`, "error");
-    return;
+    return false;
   }
 
   await loadOverview();
   setStatus(`${location} added.`, "success");
+  return true;
 }
 
 async function deleteLocation(location) {
@@ -350,13 +638,17 @@ async function deleteLocation(location) {
   });
 
   if (!result.ok) {
+    if (result.status === 401) {
+      await refreshAdminSession();
+    }
     setLoading(false);
     setStatus(result.error || `Unable to remove ${location}.`, "error");
-    return;
+    return false;
   }
 
   await loadOverview();
   setStatus(result.removed ? `${location} removed.` : `${location} is not in watch list.`, "success");
+  return true;
 }
 
 async function openDetailPage(location, options = {}) {
@@ -525,7 +817,7 @@ function renderLocationCards() {
     const tone = CARD_TONES[index % CARD_TONES.length];
     const displayTemp = tempValue === null ? "--" : tempValue.toFixed(0);
     const displayCondition = cleanConditionForCard(location, condition);
-    const country = resolveCountryForLocation(location);
+    const country = resolveCountryForLocation(location, daily);
 
     const button = document.createElement("button");
     button.type = "button";
@@ -1665,10 +1957,29 @@ function getLocationButton(event) {
   return target.closest("button[data-location]");
 }
 
-function resolveCountryForLocation(location) {
+function resolveCountryForLocation(location, daily = null) {
   const normalized = normalizeLocation(location);
   if (normalized && LOCATION_COUNTRY_BY_NAME[normalized]) {
     return LOCATION_COUNTRY_BY_NAME[normalized];
+  }
+
+  const payloadCountry = `${daily?.country || ""}`.trim();
+  if (payloadCountry) {
+    return payloadCountry;
+  }
+
+  const latitude = firstFiniteNumber(toNumber(daily?.lat), toNumber(daily?.latitude));
+  const longitude = firstFiniteNumber(toNumber(daily?.lon), toNumber(daily?.longitude));
+  if (latitude !== null && longitude !== null) {
+    const match = COUNTRY_BOUNDS.find((bounds) =>
+      latitude >= bounds.latMin &&
+      latitude <= bounds.latMax &&
+      longitude >= bounds.lonMin &&
+      longitude <= bounds.lonMax
+    );
+    if (match) {
+      return match.country;
+    }
   }
 
   const parts = `${location || ""}`
@@ -1919,6 +2230,15 @@ function setLoading(isLoading) {
   if (elements.detailBackBtn) {
     elements.detailBackBtn.disabled = isLoading;
   }
+  if (elements.adminLogoutBtn) {
+    elements.adminLogoutBtn.disabled = isLoading || !state.adminAuth.authenticated;
+  }
+  if (elements.adminAddLocationBtn) {
+    elements.adminAddLocationBtn.disabled = isLoading || !state.adminAuth.authenticated;
+  }
+  if (elements.adminLocationInput) {
+    elements.adminLocationInput.disabled = isLoading || !state.adminAuth.authenticated;
+  }
 }
 
 function setStatus(message, type = "info") {
@@ -1948,6 +2268,7 @@ async function apiRequest(url, options = {}) {
 
   try {
     const response = await fetch(requestUrl, {
+      credentials: "same-origin",
       ...options,
       headers: {
         ...(options.body ? { "Content-Type": "application/json" } : {}),
@@ -2062,6 +2383,49 @@ async function staticApiRequest(url, options = {}) {
   const method = `${options.method || "GET"}`.toUpperCase();
   const absolute = new URL(resolveRequestUrl(url));
   const apiPath = toApiPath(url);
+  const staticAdminPayload = {
+    enabled: false,
+    provider: "google",
+    googleClientId: null,
+    defaultAdminEmail: DEFAULT_ADMIN_EMAIL,
+    allowedAdminEmails: [DEFAULT_ADMIN_EMAIL],
+    authenticated: false,
+    user: null,
+    reason: STATIC_ADMIN_UNAVAILABLE
+  };
+
+  if (apiPath === "/api/config" && method === "GET") {
+    return {
+      ok: true,
+      status: 200,
+      mode: "public/data",
+      dataDir: "public/data",
+      spreadsheetId: null,
+      files: {},
+      auth: staticAdminPayload,
+      watchlistSync: {
+        enabled: false,
+        timeoutMs: 0
+      }
+    };
+  }
+
+  if (apiPath === "/api/admin/session" && method === "GET") {
+    return {
+      ok: true,
+      status: 200,
+      data: staticAdminPayload
+    };
+  }
+
+  if ((apiPath === "/api/admin/google-login" || apiPath === "/api/admin/logout") && method === "POST") {
+    return {
+      ok: false,
+      status: 501,
+      error: STATIC_ADMIN_UNAVAILABLE,
+      data: staticAdminPayload
+    };
+  }
 
   if (apiPath === "/api/weather/watchlist" && method === "GET") {
     const bundle = await loadStaticBundle();
@@ -2074,96 +2438,20 @@ async function staticApiRequest(url, options = {}) {
   }
 
   if (apiPath === "/api/weather/watchlist" && method === "POST") {
-    const body = readApiRequestBody(options.body);
-    const location = [body?.location, body?.name, absolute.searchParams.get("location")]
-      .map((value) => (typeof value === "string" ? value.trim() : ""))
-      .find(Boolean);
-
-    if (!location) {
-      return {
-        ok: false,
-        status: 400,
-        error: "Body must include 'location' or 'name'.",
-        data: null
-      };
-    }
-
-    const bundle = await loadStaticBundle();
-    const hasLocation = hasLocationInListStatic(bundle.watchlist.locations, location);
-
-    if (!hasLocation) {
-      bundle.watchlist.locations.push(location);
-      bundle.watchlist.updated_at_utc = new Date().toISOString();
-      saveLocalWatchlist(bundle.watchlist);
-      staticBundleCache = null;
-    }
-
-    const refreshed = await loadStaticBundle(true);
-
     return {
-      ok: true,
-      status: 200,
-      source: "public/data",
-      location,
-      added: !hasLocation,
-      message: hasLocation ? "Location already exists in local watchlist." : "Location added to local watchlist.",
-      watchlist: buildWatchlistPayloadStatic(refreshed),
-      sync: {
-        enabled: false,
-        ok: false,
-        status: 0,
-        error: STATIC_SYNC_UNAVAILABLE
-      }
+      ok: false,
+      status: 501,
+      error: STATIC_ADMIN_UNAVAILABLE,
+      data: staticAdminPayload
     };
   }
 
   if (apiPath === "/api/weather/watchlist" && method === "DELETE") {
-    const body = readApiRequestBody(options.body);
-    const location = [body?.location, body?.name, absolute.searchParams.get("location")]
-      .map((value) => (typeof value === "string" ? value.trim() : ""))
-      .find(Boolean);
-
-    if (!location) {
-      return {
-        ok: false,
-        status: 400,
-        error: "Body must include 'location' or 'name'.",
-        data: null
-      };
-    }
-
-    const bundle = await loadStaticBundle();
-    const existingWatchlist = buildWatchlistPayloadStatic(bundle);
-    const baseLocations = Array.isArray(bundle.watchlist?.locations) && bundle.watchlist.locations.length
-      ? [...bundle.watchlist.locations]
-      : [...existingWatchlist.locations];
-    const key = normalizeLocation(location);
-    const nextLocations = baseLocations.filter((item) => normalizeLocation(item) !== key);
-    const removed = nextLocations.length !== baseLocations.length;
-
-    if (removed) {
-      bundle.watchlist.locations = nextLocations;
-      bundle.watchlist.updated_at_utc = new Date().toISOString();
-      saveLocalWatchlist(bundle.watchlist);
-      staticBundleCache = null;
-    }
-
-    const refreshed = await loadStaticBundle(true);
-
     return {
-      ok: true,
-      status: 200,
-      source: "public/data",
-      location,
-      removed,
-      message: removed ? "Location removed from local watchlist." : "Location not found in local watchlist.",
-      watchlist: buildWatchlistPayloadStatic(refreshed),
-      sync: {
-        enabled: false,
-        ok: false,
-        status: 0,
-        error: STATIC_SYNC_UNAVAILABLE
-      }
+      ok: false,
+      status: 501,
+      error: STATIC_ADMIN_UNAVAILABLE,
+      data: staticAdminPayload
     };
   }
 
@@ -2263,14 +2551,10 @@ async function loadStaticBundle(force = false) {
   ]);
 
   const fileWatchlist = normalizeWatchlistPayload(watchlistFile);
-  const localWatchlist = normalizeWatchlistPayload(loadLocalWatchlist());
-  const hasLocalOverride = localWatchlist.updated_at_utc !== null || localWatchlist.locations.length > 0;
-  const mergedWatchlist = hasLocalOverride
-    ? localWatchlist
-    : {
-        updated_at_utc: fileWatchlist.updated_at_utc || null,
-        locations: mergeLocationsStatic(fileWatchlist.locations)
-      };
+  const mergedWatchlist = {
+    updated_at_utc: fileWatchlist.updated_at_utc || null,
+    locations: mergeLocationsStatic(fileWatchlist.locations)
+  };
 
   staticBundleCache = {
     report: toObject(report) || {},
@@ -2295,28 +2579,6 @@ async function fetchDataJson(relativePath, fallbackValue) {
   }
 }
 
-function loadLocalWatchlist() {
-  try {
-    const raw = window.localStorage.getItem(LOCAL_WATCHLIST_STORAGE_KEY);
-    if (!raw) {
-      return { locations: [], updated_at_utc: null };
-    }
-
-    return normalizeWatchlistPayload(parseJsonSafely(raw));
-  } catch {
-    return { locations: [], updated_at_utc: null };
-  }
-}
-
-function saveLocalWatchlist(payload) {
-  const normalized = normalizeWatchlistPayload(payload);
-  try {
-    window.localStorage.setItem(LOCAL_WATCHLIST_STORAGE_KEY, JSON.stringify(normalized));
-  } catch {
-    // Storage can fail in restrictive browser contexts; ignore silently.
-  }
-}
-
 function normalizeWatchlistPayload(payload) {
   if (Array.isArray(payload)) {
     return {
@@ -2337,6 +2599,11 @@ function normalizeWatchlistPayload(payload) {
 function buildDailyDataStatic(report, history, location) {
   const zones = Array.isArray(report?.zones) ? report.zones : [];
   const zone = zones.find((item) => normalizeLocation(item?.name) === normalizeLocation(location)) || null;
+
+  const actuals = Array.isArray(history?.actuals) ? history.actuals : [];
+  const latestActual = actuals
+    .filter((item) => normalizeLocation(item?.location) === normalizeLocation(location))
+    .sort((a, b) => `${b.date || ""}`.localeCompare(`${a.date || ""}`))[0] || null;
 
   const forecasts = Array.isArray(history?.forecasts) ? history.forecasts : [];
   const locationForecasts = forecasts
@@ -2363,6 +2630,8 @@ function buildDailyDataStatic(report, history, location) {
     normalizeWindDirection(latestForecast?.wind_direction ?? latestForecast?.wind_dir),
     mostCommonString(sourceForecastRows.map((row) => normalizeWindDirection(row?.wind_direction ?? row?.wind_dir)))
   );
+  const lat = firstFiniteNumber(toNumber(zone?.lat), toNumber(latestActual?.lat));
+  const lon = firstFiniteNumber(toNumber(zone?.lon), toNumber(latestActual?.lon));
   const next7FromZone = normalizeDailyNext7ForecastRows(zone?.next_7_days, location);
   const next7FromSources = buildNext7ForecastRowsFromSourceForecasts(zone?.source_forecasts, location);
   const next7Days = next7FromZone.length
@@ -2380,6 +2649,9 @@ function buildDailyDataStatic(report, history, location) {
     wind_kph: toNumber(zone?.ensemble?.wind_max) ?? toNumber(latestForecast?.wind_max),
     rainfall_chance: rainfallChance,
     wind_direction: windDirection,
+    lat,
+    lon,
+    country: resolveCountryForLocation(location, { lat, lon }),
     updated_at: report?.generated_at_utc || history?.generated_at_utc || null,
     forecast_date: report?.forecast_date || latestForecast?.target_date || null,
     next_7_days: next7Days,

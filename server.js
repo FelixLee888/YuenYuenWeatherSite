@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { existsSync, readFileSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
-import { createSign } from "node:crypto";
+import { createHmac, createSign, timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -19,7 +19,13 @@ const GOOGLE_SHEETS_SPREADSHEET_ID = (process.env.GOOGLE_SHEETS_SPREADSHEET_ID |
 const GOOGLE_SHEETS_ENABLED = (process.env.GOOGLE_SHEETS_ENABLED || "1").trim() !== "0";
 const GOOGLE_OAUTH_ACCESS_TOKEN = (process.env.GOOGLE_OAUTH_ACCESS_TOKEN || "").trim();
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 const GOOGLE_SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
+const GOOGLE_CLIENT_ID = (process.env.GOOGLE_CLIENT_ID || "").trim();
+const ADMIN_ALLOWED_EMAILS = parseEmailList(process.env.ADMIN_ALLOWED_EMAILS || "jancefelix@gmail.com");
+const ADMIN_SESSION_SECRET = (process.env.ADMIN_SESSION_SECRET || "").trim();
+const ADMIN_SESSION_COOKIE_NAME = "yyw_admin_session";
+const ADMIN_SESSION_TTL_MS = Number(process.env.ADMIN_SESSION_TTL_MS || 1000 * 60 * 60 * 24 * 7);
 const googleTokenCache = {
   accessToken: "",
   expiresAtMs: 0
@@ -32,6 +38,33 @@ const MWIS_REGION_CODES_BY_LOCATION = {
   glenshee: ["eh", "sh"],
   cairngorms: ["eh"]
 };
+
+const LOCATION_COUNTRY_BY_NAME = {
+  aberdeen: "United Kingdom",
+  glencoe: "United Kingdom",
+  "ben nevis": "United Kingdom",
+  glenshee: "United Kingdom",
+  cairngorms: "United Kingdom",
+  paisley: "United Kingdom",
+  "passo del tonale": "Italy"
+};
+
+const COUNTRY_BOUNDS = [
+  { country: "United Kingdom", latMin: 49.5, latMax: 61.2, lonMin: -8.8, lonMax: 2.2 },
+  { country: "Ireland", latMin: 51.2, latMax: 55.8, lonMin: -10.9, lonMax: -5.0 },
+  { country: "Italy", latMin: 35.0, latMax: 47.5, lonMin: 6.0, lonMax: 19.2 },
+  { country: "France", latMin: 41.0, latMax: 51.5, lonMin: -5.8, lonMax: 9.8 },
+  { country: "Spain", latMin: 35.0, latMax: 44.5, lonMin: -9.8, lonMax: 4.5 },
+  { country: "Portugal", latMin: 36.8, latMax: 42.4, lonMin: -9.7, lonMax: -6.0 },
+  { country: "Germany", latMin: 47.0, latMax: 55.4, lonMin: 5.4, lonMax: 15.6 },
+  { country: "Switzerland", latMin: 45.6, latMax: 47.9, lonMin: 5.8, lonMax: 10.7 },
+  { country: "Austria", latMin: 46.2, latMax: 49.2, lonMin: 9.4, lonMax: 17.3 },
+  { country: "Norway", latMin: 57.5, latMax: 71.5, lonMin: 4.0, lonMax: 31.5 },
+  { country: "United States", latMin: 24.0, latMax: 49.8, lonMin: -125.0, lonMax: -66.5 },
+  { country: "Canada", latMin: 41.5, latMax: 83.5, lonMin: -141.5, lonMax: -52.0 },
+  { country: "Australia", latMin: -44.5, latMax: -10.0, lonMin: 112.0, lonMax: 154.5 },
+  { country: "New Zealand", latMin: -47.8, latMax: -34.0, lonMin: 166.0, lonMax: 179.9 }
+];
 
 const SHEET_TABLE_DEFS = {
   latest_meta: {
@@ -303,10 +336,84 @@ async function handleApi(req, res, requestUrl) {
       dataDir: getDataBackendMode() === "google-sheets" ? "google-sheets" : "public/data",
       spreadsheetId: GOOGLE_SHEETS_SPREADSHEET_ID || null,
       files: meta,
+      auth: buildAdminAuthPayload(req),
       watchlistSync: {
         enabled: Boolean(AIBOT_WATCHLIST_SYNC_URL),
         timeoutMs: AIBOT_SYNC_TIMEOUT_MS
       }
+    });
+    return;
+  }
+
+  if (pathname === "/api/admin/session" && req.method === "GET") {
+    sendJson(res, 200, {
+      ok: true,
+      data: buildAdminAuthPayload(req)
+    });
+    return;
+  }
+
+  if (pathname === "/api/admin/google-login" && req.method === "POST") {
+    let body;
+    try {
+      body = await readJsonBody(req);
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message });
+      return;
+    }
+
+    const authConfig = getAdminAuthConfig();
+    if (!authConfig.enabled) {
+      sendJson(res, 503, {
+        ok: false,
+        error: authConfig.reason || "Google admin login is not configured."
+      });
+      return;
+    }
+
+    const credential = `${body?.credential || body?.id_token || ""}`.trim();
+    if (!credential) {
+      sendJson(res, 400, {
+        ok: false,
+        error: "Body must include 'credential'."
+      });
+      return;
+    }
+
+    let user;
+    try {
+      user = await verifyGoogleIdToken(credential);
+    } catch (error) {
+      sendJson(res, 401, {
+        ok: false,
+        error: error?.message || "Google login verification failed."
+      });
+      return;
+    }
+
+    if (!isAllowedAdminEmail(user.email)) {
+      sendJson(res, 403, {
+        ok: false,
+        error: `Google account ${user.email} is not allowed to manage the watchlist.`
+      });
+      return;
+    }
+
+    setAdminSessionCookie(res, req, user);
+    sendJson(res, 200, {
+      ok: true,
+      message: `Signed in as ${user.email}.`,
+      data: buildAdminAuthPayload(req, user)
+    });
+    return;
+  }
+
+  if (pathname === "/api/admin/logout" && req.method === "POST") {
+    clearAdminSessionCookie(res, req);
+    sendJson(res, 200, {
+      ok: true,
+      message: "Signed out.",
+      data: buildAdminAuthPayload(req, null)
     });
     return;
   }
@@ -366,6 +473,10 @@ async function handleApi(req, res, requestUrl) {
   }
 
   if (pathname === "/api/weather/watchlist" && req.method === "DELETE") {
+    if (!requireAdminSession(req, res)) {
+      return;
+    }
+
     let body;
     try {
       body = await readJsonBody(req);
@@ -415,6 +526,10 @@ async function handleApi(req, res, requestUrl) {
   }
 
   if (pathname === "/api/weather/watchlist" && req.method === "POST") {
+    if (!requireAdminSession(req, res)) {
+      return;
+    }
+
     let body;
     try {
       body = await readJsonBody(req);
@@ -498,6 +613,38 @@ function getDataBackendMode() {
   return isGoogleSheetsReady() ? "google-sheets" : "local-data";
 }
 
+function getAdminAuthConfig() {
+  if (!isGoogleSheetsReady()) {
+    return {
+      enabled: false,
+      googleClientId: GOOGLE_CLIENT_ID || null,
+      reason: "Google Sheets watchlist storage is not configured."
+    };
+  }
+
+  if (!GOOGLE_CLIENT_ID) {
+    return {
+      enabled: false,
+      googleClientId: null,
+      reason: "GOOGLE_CLIENT_ID is not configured."
+    };
+  }
+
+  if (!resolveAdminSessionSecret()) {
+    return {
+      enabled: false,
+      googleClientId: GOOGLE_CLIENT_ID,
+      reason: "Admin session secret is unavailable."
+    };
+  }
+
+  return {
+    enabled: true,
+    googleClientId: GOOGLE_CLIENT_ID,
+    reason: null
+  };
+}
+
 function isGoogleSheetsReady() {
   if (!GOOGLE_SHEETS_ENABLED || !GOOGLE_SHEETS_SPREADSHEET_ID) {
     return false;
@@ -571,6 +718,293 @@ function resolveGoogleServiceAccountCredentials() {
 function base64UrlEncode(value) {
   const raw = Buffer.isBuffer(value) ? value.toString("base64") : Buffer.from(String(value)).toString("base64");
   return raw.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function base64UrlDecode(value) {
+  const normalized = `${value || ""}`.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = normalized.length % 4 === 0 ? "" : "=".repeat(4 - (normalized.length % 4));
+  return Buffer.from(`${normalized}${pad}`, "base64").toString("utf8");
+}
+
+function parseEmailList(raw) {
+  return `${raw || ""}`
+    .split(/[,\n;]/)
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function resolveAdminSessionSecret() {
+  if (ADMIN_SESSION_SECRET) {
+    return ADMIN_SESSION_SECRET;
+  }
+
+  const serviceAccountJson = (process.env.GOOGLE_SERVICE_ACCOUNT_JSON || process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON || "").trim();
+  if (serviceAccountJson) {
+    return serviceAccountJson;
+  }
+
+  const clientEmail = (
+    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ||
+    process.env.GOOGLE_CLIENT_EMAIL ||
+    process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT_EMAIL ||
+    ""
+  ).trim();
+  const privateKey = (
+    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ||
+    process.env.GOOGLE_PRIVATE_KEY ||
+    process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT_PRIVATE_KEY ||
+    ""
+  ).replace(/\\n/g, "\n");
+
+  if (clientEmail && privateKey) {
+    return `${clientEmail}:${privateKey}`;
+  }
+
+  return "";
+}
+
+function isAllowedAdminEmail(email) {
+  const normalized = `${email || ""}`.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+  return ADMIN_ALLOWED_EMAILS.includes(normalized);
+}
+
+function parseCookies(headerValue) {
+  const cookies = {};
+  const raw = `${headerValue || ""}`;
+  if (!raw) {
+    return cookies;
+  }
+
+  for (const part of raw.split(";")) {
+    const separatorIndex = part.indexOf("=");
+    if (separatorIndex <= 0) {
+      continue;
+    }
+
+    const name = part.slice(0, separatorIndex).trim();
+    const value = part.slice(separatorIndex + 1).trim();
+    if (!name) {
+      continue;
+    }
+
+    try {
+      cookies[name] = decodeURIComponent(value);
+    } catch {
+      cookies[name] = value;
+    }
+  }
+
+  return cookies;
+}
+
+function getRequestCookies(req) {
+  return parseCookies(req?.headers?.cookie || "");
+}
+
+function isSecureRequest(req) {
+  const forwardedProto = `${req?.headers?.["x-forwarded-proto"] || ""}`.trim().toLowerCase();
+  if (forwardedProto) {
+    return forwardedProto === "https";
+  }
+
+  return Boolean(req?.socket?.encrypted);
+}
+
+function buildCookieHeader(name, value, req, overrides = {}) {
+  const secure = overrides.secure ?? isSecureRequest(req);
+  const maxAgeSeconds = Number.isFinite(overrides.maxAgeSeconds) ? Math.max(0, Math.round(overrides.maxAgeSeconds)) : null;
+  const parts = [
+    `${name}=${encodeURIComponent(value)}`,
+    `Path=${overrides.path || "/"}`,
+    "HttpOnly",
+    `SameSite=${overrides.sameSite || "Lax"}`
+  ];
+
+  if (secure) {
+    parts.push("Secure");
+  }
+
+  if (maxAgeSeconds !== null) {
+    parts.push(`Max-Age=${maxAgeSeconds}`);
+    parts.push(`Expires=${new Date(Date.now() + maxAgeSeconds * 1000).toUTCString()}`);
+  }
+
+  return parts.join("; ");
+}
+
+function createAdminSessionToken(user) {
+  const secret = resolveAdminSessionSecret();
+  if (!secret) {
+    throw new Error("Admin session secret is unavailable.");
+  }
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const payload = {
+    email: `${user?.email || ""}`.trim().toLowerCase(),
+    name: `${user?.name || user?.email || ""}`.trim(),
+    picture: `${user?.picture || ""}`.trim() || null,
+    sub: `${user?.sub || ""}`.trim() || null,
+    iat: nowSeconds,
+    exp: nowSeconds + Math.max(60, Math.floor(ADMIN_SESSION_TTL_MS / 1000))
+  };
+
+  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+  const signature = base64UrlEncode(createHmac("sha256", secret).update(encodedPayload).digest());
+  return `${encodedPayload}.${signature}`;
+}
+
+function verifyAdminSessionToken(token) {
+  const secret = resolveAdminSessionSecret();
+  if (!secret || !token || !token.includes(".")) {
+    return null;
+  }
+
+  const [encodedPayload, providedSignature] = token.split(".");
+  if (!encodedPayload || !providedSignature) {
+    return null;
+  }
+
+  const expectedSignature = base64UrlEncode(createHmac("sha256", secret).update(encodedPayload).digest());
+  const providedBuffer = Buffer.from(providedSignature);
+  const expectedBuffer = Buffer.from(expectedSignature);
+  if (providedBuffer.length !== expectedBuffer.length || !timingSafeEqual(providedBuffer, expectedBuffer)) {
+    return null;
+  }
+
+  let payload;
+  try {
+    payload = JSON.parse(base64UrlDecode(encodedPayload));
+  } catch {
+    return null;
+  }
+
+  const email = `${payload?.email || ""}`.trim().toLowerCase();
+  const exp = Number(payload?.exp);
+  if (!email || !Number.isFinite(exp) || exp * 1000 <= Date.now() || !isAllowedAdminEmail(email)) {
+    return null;
+  }
+
+  return {
+    email,
+    name: `${payload?.name || email}`.trim() || email,
+    picture: `${payload?.picture || ""}`.trim() || null,
+    sub: `${payload?.sub || ""}`.trim() || null,
+    exp
+  };
+}
+
+function getAdminSessionFromRequest(req) {
+  const authConfig = getAdminAuthConfig();
+  if (!authConfig.enabled) {
+    return null;
+  }
+
+  const cookies = getRequestCookies(req);
+  const token = cookies[ADMIN_SESSION_COOKIE_NAME];
+  if (!token) {
+    return null;
+  }
+
+  return verifyAdminSessionToken(token);
+}
+
+function setAdminSessionCookie(res, req, user) {
+  const token = createAdminSessionToken(user);
+  res.setHeader("Set-Cookie", buildCookieHeader(ADMIN_SESSION_COOKIE_NAME, token, req, {
+    maxAgeSeconds: Math.floor(ADMIN_SESSION_TTL_MS / 1000)
+  }));
+}
+
+function clearAdminSessionCookie(res, req) {
+  res.setHeader("Set-Cookie", buildCookieHeader(ADMIN_SESSION_COOKIE_NAME, "", req, {
+    maxAgeSeconds: 0
+  }));
+}
+
+function buildAdminAuthPayload(req, sessionOverride) {
+  const authConfig = getAdminAuthConfig();
+  const session = sessionOverride === undefined ? getAdminSessionFromRequest(req) : sessionOverride;
+
+  return {
+    enabled: authConfig.enabled,
+    provider: "google",
+    googleClientId: authConfig.enabled ? authConfig.googleClientId : null,
+    defaultAdminEmail: ADMIN_ALLOWED_EMAILS[0] || null,
+    allowedAdminEmails: ADMIN_ALLOWED_EMAILS,
+    authenticated: Boolean(session),
+    user: session
+      ? {
+          email: session.email,
+          name: session.name || session.email,
+          picture: session.picture || null
+        }
+      : null,
+    reason: authConfig.reason || null
+  };
+}
+
+function requireAdminSession(req, res) {
+  const authConfig = getAdminAuthConfig();
+  if (!authConfig.enabled) {
+    sendJson(res, 503, {
+      ok: false,
+      error: authConfig.reason || "Google admin login is not configured."
+    });
+    return null;
+  }
+
+  const session = getAdminSessionFromRequest(req);
+  if (!session) {
+    sendJson(res, 401, {
+      ok: false,
+      error: "Admin login required."
+    });
+    return null;
+  }
+
+  return session;
+}
+
+async function verifyGoogleIdToken(idToken) {
+  const authConfig = getAdminAuthConfig();
+  if (!authConfig.enabled) {
+    throw new Error(authConfig.reason || "Google admin login is not configured.");
+  }
+
+  const url = new URL(GOOGLE_TOKENINFO_URL);
+  url.searchParams.set("id_token", idToken);
+
+  const response = await fetch(url, { method: "GET" });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(toErrorMessage(payload, "Google login verification failed."));
+  }
+
+  const audience = `${payload?.aud || payload?.azp || ""}`.trim();
+  if (!audience || audience !== authConfig.googleClientId) {
+    throw new Error("Google account token was issued for a different client.");
+  }
+
+  const email = `${payload?.email || ""}`.trim().toLowerCase();
+  const emailVerified = `${payload?.email_verified || ""}`.trim().toLowerCase();
+  if (!email || !["true", "1"].includes(emailVerified)) {
+    throw new Error("Google account email is missing or not verified.");
+  }
+
+  const expiresAtSeconds = Number(payload?.exp);
+  if (!Number.isFinite(expiresAtSeconds) || expiresAtSeconds * 1000 <= Date.now()) {
+    throw new Error("Google login token has expired.");
+  }
+
+  return {
+    email,
+    name: `${payload?.name || email}`.trim() || email,
+    picture: `${payload?.picture || ""}`.trim() || null,
+    sub: `${payload?.sub || ""}`.trim() || null
+  };
 }
 
 async function getGoogleAccessToken() {
@@ -1259,6 +1693,11 @@ function buildDailyData(report, history, location) {
   const zones = Array.isArray(report?.zones) ? report.zones : [];
   const zone = zones.find((item) => normalizeLocation(item?.name) === normalizeLocation(location)) || null;
 
+  const actuals = Array.isArray(history?.actuals) ? history.actuals : [];
+  const latestActual = actuals
+    .filter((item) => normalizeLocation(item?.location) === normalizeLocation(location))
+    .sort((a, b) => `${b.date || ""}`.localeCompare(`${a.date || ""}`))[0] || null;
+
   const forecasts = Array.isArray(history?.forecasts) ? history.forecasts : [];
   const locationForecasts = forecasts
     .filter((item) => normalizeLocation(item?.location) === normalizeLocation(location))
@@ -1289,6 +1728,8 @@ function buildDailyData(report, history, location) {
     normalizeWindDirection(pickWindDirectionFromRecord(latestForecast)),
     mostCommonString(sourceForecastRows.map((row) => normalizeWindDirection(pickWindDirectionFromRecord(row))))
   );
+  const lat = firstFiniteNumber(toNumber(zone?.lat), toNumber(latestActual?.lat));
+  const lon = firstFiniteNumber(toNumber(zone?.lon), toNumber(latestActual?.lon));
   const next7FromZone = normalizeDailyNext7Rows(zone?.next_7_days, location);
   const next7FromSources = buildNext7ForecastRowsFromSourceForecasts(zone?.source_forecasts, location);
   const next7Days = next7FromZone.length
@@ -1306,6 +1747,9 @@ function buildDailyData(report, history, location) {
     wind_kph: toNumber(zone?.ensemble?.wind_max) ?? toNumber(latestForecast?.wind_max),
     rainfall_chance: rainfallChance,
     wind_direction: windDirection,
+    lat,
+    lon,
+    country: resolveCountryForLocation(location, lat, lon),
     updated_at: report?.generated_at_utc || history?.generated_at_utc || null,
     forecast_date: report?.forecast_date || latestForecast?.target_date || null,
     next_7_days: next7Days,
@@ -1648,6 +2092,42 @@ function resolveLocation(location, knownLocations) {
 
   const exact = knownLocations.find((item) => normalizeLocation(item) === normalized);
   return exact || location.trim();
+}
+
+function resolveCountryForLocation(location, lat, lon) {
+  const normalized = normalizeLocation(location);
+  if (normalized && LOCATION_COUNTRY_BY_NAME[normalized]) {
+    return LOCATION_COUNTRY_BY_NAME[normalized];
+  }
+
+  const latitude = toNumber(lat);
+  const longitude = toNumber(lon);
+  if (latitude !== null && longitude !== null) {
+    const match = COUNTRY_BOUNDS.find((bounds) =>
+      latitude >= bounds.latMin &&
+      latitude <= bounds.latMax &&
+      longitude >= bounds.lonMin &&
+      longitude <= bounds.lonMax
+    );
+    if (match) {
+      return match.country;
+    }
+  }
+
+  const parts = `${location || ""}`
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length >= 2) {
+    const country = parts[parts.length - 1];
+    if (country.length <= 3) {
+      return country.toUpperCase();
+    }
+    return country;
+  }
+
+  return "Unknown Country";
 }
 
 function hasLocationInList(list, location) {
