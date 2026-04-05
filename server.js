@@ -536,7 +536,9 @@ async function handleApi(req, res, requestUrl) {
       return;
     }
 
-    const query = `${requestUrl.searchParams.get("q") || requestUrl.searchParams.get("query") || ""}`.trim();
+    const query = `${requestUrl.searchParams.get("q") || requestUrl.searchParams.get("query") || ""}`
+      .replace(/\s+/g, " ")
+      .trim();
     if (query.length < 2) {
       sendJson(res, 200, {
         ok: true,

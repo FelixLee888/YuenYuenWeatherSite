@@ -244,7 +244,7 @@ function bindEvents() {
   });
 
   elements.adminLocationInput?.addEventListener("input", (event) => {
-    const value = `${event.target?.value || ""}`.trim();
+    const value = `${event.target?.value || ""}`;
     state.adminSearch.query = value;
     state.adminSearch.selectedValue = "";
     queueAdminLocationSearch(value);
@@ -707,23 +707,25 @@ function queueAdminLocationSearch(query) {
     window.clearTimeout(state.adminSearch.debounceId);
   }
 
-  if (query.length < 2) {
+  const normalizedQuery = `${query || ""}`.replace(/\s+/g, " ").trim();
+
+  if (normalizedQuery.length < 2) {
     state.adminSearch.searching = false;
     state.adminSearch.results = [];
     state.adminSearch.selectedValue = "";
-    state.adminSearch.message = query ? "Type at least 2 characters to search." : "Type at least 2 characters to search.";
+    state.adminSearch.message = normalizedQuery ? "Type at least 2 characters to search." : "Type at least 2 characters to search.";
     renderAdminControls();
     return;
   }
 
   state.adminSearch.searching = true;
-  state.adminSearch.message = `Searching for “${query}”...`;
+  state.adminSearch.message = `Searching for “${normalizedQuery}”...`;
   renderAdminControls();
 
   const requestId = state.adminSearch.requestId + 1;
   state.adminSearch.requestId = requestId;
   state.adminSearch.debounceId = window.setTimeout(() => {
-    void performAdminLocationSearch(query, requestId);
+    void performAdminLocationSearch(normalizedQuery, requestId);
   }, 260);
 }
 
