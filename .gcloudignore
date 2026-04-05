@@ -1,0 +1,11 @@
+.git
+.gitignore
+.github
+.env
+.env.*
+node_modules
+.tmp
+.weather-benchmark-data
+memory
+scripts/__pycache__
+*.log

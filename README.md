@@ -87,6 +87,37 @@ Open:
 
 [http://127.0.0.1:4173](http://127.0.0.1:4173)
 
+## Deploy to Cloud Run
+This app can be deployed as a single Node service to Cloud Run. That deployment can serve both:
+
+- the website frontend
+- the authenticated `/api/*` backend used by admin watchlist management
+
+Recommended env vars for Cloud Run:
+
+- `GOOGLE_SHEETS_ENABLED=1`
+- `GOOGLE_SHEETS_SPREADSHEET_ID=1g9_1I1xyt7iO922yNXckPswnqV5ATIzLo3NQ6IJ4O5k`
+- `GOOGLE_CLIENT_ID=<google oauth web client id>`
+- `ADMIN_ALLOWED_EMAILS=jancefelix@gmail.com`
+- `ADMIN_SESSION_SECRET=<random long secret>`
+- `AIBOT_WATCHLIST_SYNC_URL=<optional>`
+
+Cloud Run-specific note:
+
+- `server.js` supports using the Cloud Run attached service account via the metadata server for Google Sheets access, so you do not have to bake a private key into the container if the runtime service account has access to the spreadsheet.
+
+Deploy example:
+
+```bash
+gcloud run deploy yuen-yuen-weather \
+  --source . \
+  --project my-cat-detector \
+  --region europe-west2 \
+  --allow-unauthenticated
+```
+
+After deploy, add the Cloud Run service URL origin to the Google OAuth web client as an authorized JavaScript origin. Without that, Google login for the admin UI will stay blocked by OAuth origin checks.
+
 ## Google Sheet sync commands
 ```bash
 # Import latest crawler JSON outputs into Google Sheets

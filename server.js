@@ -21,6 +21,7 @@ const GOOGLE_OAUTH_ACCESS_TOKEN = (process.env.GOOGLE_OAUTH_ACCESS_TOKEN || "").
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 const GOOGLE_SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
+const GOOGLE_METADATA_TOKEN_URL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token";
 const GOOGLE_CLIENT_ID = (process.env.GOOGLE_CLIENT_ID || "").trim();
 const ADMIN_ALLOWED_EMAILS = parseEmailList(process.env.ADMIN_ALLOWED_EMAILS || "jancefelix@gmail.com");
 const ADMIN_SESSION_SECRET = (process.env.ADMIN_SESSION_SECRET || "").trim();
@@ -654,7 +655,15 @@ function isGoogleSheetsReady() {
     return true;
   }
 
+  if (isCloudRunRuntime()) {
+    return true;
+  }
+
   return hasGoogleServiceAccountCredentials();
+}
+
+function isCloudRunRuntime() {
+  return Boolean((process.env.K_SERVICE || "").trim());
 }
 
 function hasGoogleServiceAccountCredentials() {
@@ -1007,6 +1016,25 @@ async function verifyGoogleIdToken(idToken) {
   };
 }
 
+async function getGoogleMetadataAccessToken() {
+  const response = await fetch(GOOGLE_METADATA_TOKEN_URL, {
+    method: "GET",
+    headers: {
+      "Metadata-Flavor": "Google"
+    }
+  });
+
+  const payload = await response.json();
+  if (!response.ok || !payload?.access_token) {
+    throw new Error(`Unable to obtain Google metadata access token: ${JSON.stringify(payload)}`);
+  }
+
+  return {
+    accessToken: payload.access_token,
+    expiresIn: Number(payload.expires_in) || 3600
+  };
+}
+
 async function getGoogleAccessToken() {
   if (GOOGLE_OAUTH_ACCESS_TOKEN) {
     return GOOGLE_OAUTH_ACCESS_TOKEN;
@@ -1017,45 +1045,56 @@ async function getGoogleAccessToken() {
     return googleTokenCache.accessToken;
   }
 
-  const { clientEmail, privateKey } = resolveGoogleServiceAccountCredentials();
-  const now = Math.floor(nowMs / 1000);
+  if (hasGoogleServiceAccountCredentials()) {
+    const { clientEmail, privateKey } = resolveGoogleServiceAccountCredentials();
+    const now = Math.floor(nowMs / 1000);
 
-  const header = { alg: "RS256", typ: "JWT" };
-  const claim = {
-    iss: clientEmail,
-    scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file",
-    aud: GOOGLE_TOKEN_URL,
-    exp: now + 3600,
-    iat: now
-  };
+    const header = { alg: "RS256", typ: "JWT" };
+    const claim = {
+      iss: clientEmail,
+      scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file",
+      aud: GOOGLE_TOKEN_URL,
+      exp: now + 3600,
+      iat: now
+    };
 
-  const signingInput = `${base64UrlEncode(JSON.stringify(header))}.${base64UrlEncode(JSON.stringify(claim))}`;
-  const signer = createSign("RSA-SHA256");
-  signer.update(signingInput);
-  signer.end();
-  const signature = signer.sign(privateKey);
-  const assertion = `${signingInput}.${base64UrlEncode(signature)}`;
+    const signingInput = `${base64UrlEncode(JSON.stringify(header))}.${base64UrlEncode(JSON.stringify(claim))}`;
+    const signer = createSign("RSA-SHA256");
+    signer.update(signingInput);
+    signer.end();
+    const signature = signer.sign(privateKey);
+    const assertion = `${signingInput}.${base64UrlEncode(signature)}`;
 
-  const response = await fetch(GOOGLE_TOKEN_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion
-    })
-  });
+    const response = await fetch(GOOGLE_TOKEN_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: new URLSearchParams({
+        grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+        assertion
+      })
+    });
 
-  const payload = await response.json();
-  if (!response.ok || !payload?.access_token) {
-    throw new Error(`Unable to obtain Google access token: ${JSON.stringify(payload)}`);
+    const payload = await response.json();
+    if (!response.ok || !payload?.access_token) {
+      throw new Error(`Unable to obtain Google access token: ${JSON.stringify(payload)}`);
+    }
+
+    const expiresIn = Number(payload.expires_in) || 3600;
+    googleTokenCache.accessToken = payload.access_token;
+    googleTokenCache.expiresAtMs = Date.now() + Math.max(60, expiresIn - 60) * 1000;
+    return googleTokenCache.accessToken;
   }
 
-  const expiresIn = Number(payload.expires_in) || 3600;
-  googleTokenCache.accessToken = payload.access_token;
-  googleTokenCache.expiresAtMs = Date.now() + Math.max(60, expiresIn - 60) * 1000;
-  return googleTokenCache.accessToken;
+  if (isCloudRunRuntime()) {
+    const metadataToken = await getGoogleMetadataAccessToken();
+    googleTokenCache.accessToken = metadataToken.accessToken;
+    googleTokenCache.expiresAtMs = Date.now() + Math.max(60, metadataToken.expiresIn - 60) * 1000;
+    return googleTokenCache.accessToken;
+  }
+
+  throw new Error("Google Sheets credentials are not configured.");
 }
 
 async function googleSheetsRequest(accessToken, apiPath, options = {}) {
