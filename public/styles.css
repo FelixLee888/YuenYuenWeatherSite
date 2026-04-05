@@ -651,6 +651,13 @@ body.is-detail-view .admin-menu {
   flex-shrink: 0;
 }
 
+.location-delete-group {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 .location-delete-btn {
   appearance: none;
   width: 1.7rem;
@@ -692,6 +699,60 @@ body.is-detail-view .admin-menu {
   stroke: currentColor;
   stroke-width: 2.3;
   stroke-linecap: round;
+}
+
+.location-delete-confirm {
+  position: absolute;
+  top: calc(100% + 0.32rem);
+  right: 0;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.28rem 0.34rem;
+  border-radius: 999px;
+  border: 1px solid rgba(195, 219, 250, 0.28);
+  background: rgba(10, 22, 38, 0.94);
+  box-shadow: 0 12px 24px rgba(4, 10, 18, 0.34);
+  white-space: nowrap;
+}
+
+.location-delete-confirm span {
+  color: #eff7ff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.location-delete-confirm-btn,
+.location-delete-cancel-btn {
+  appearance: none;
+  border-radius: 999px;
+  border: 1px solid rgba(195, 219, 250, 0.26);
+  background: rgba(24, 44, 68, 0.82);
+  color: #f2f8ff;
+  padding: 0.18rem 0.45rem;
+  font-size: 0.63rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease, opacity 0.18s ease;
+}
+
+.location-delete-confirm-btn:hover,
+.location-delete-cancel-btn:hover {
+  transform: translateY(-1px);
+}
+
+.location-delete-confirm-btn {
+  background: rgba(138, 20, 34, 0.84);
+  border-color: rgba(255, 194, 205, 0.5);
+}
+
+.location-delete-confirm-btn:focus-visible,
+.location-delete-cancel-btn:focus-visible {
+  outline: 2px solid #f5c3cb;
+  outline-offset: 2px;
 }
 
 .location-title-wrap {

@@ -130,6 +130,7 @@ const state = {
     debounceId: 0,
     requestId: 0
   },
+  pendingDeleteLocation: "",
   suppressDeckClickUntil: 0,
   swipe: {
     tracking: false,
@@ -271,11 +272,28 @@ function bindEvents() {
 
   document.addEventListener("click", (event) => {
     if (!state.adminUiOpen || !elements.adminMenu) {
+      if (
+        state.pendingDeleteLocation &&
+        event.target instanceof Element &&
+        !event.target.closest(".location-delete-group")
+      ) {
+        state.pendingDeleteLocation = "";
+        renderLocationCards();
+      }
       return;
     }
 
     if (event.target instanceof Node && !elements.adminMenu.contains(event.target)) {
       closeAdminUi();
+    }
+
+    if (
+      state.pendingDeleteLocation &&
+      event.target instanceof Element &&
+      !event.target.closest(".location-delete-group")
+    ) {
+      state.pendingDeleteLocation = "";
+      renderLocationCards();
     }
   });
 
@@ -285,13 +303,35 @@ function bindEvents() {
       return;
     }
 
+    const deleteConfirmButton = getLocationDeleteConfirmButton(event);
+    if (deleteConfirmButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      const location = deleteConfirmButton.getAttribute("data-location") || "";
+      if (location) {
+        await deleteLocation(location);
+      }
+      return;
+    }
+
+    const deleteCancelButton = getLocationDeleteCancelButton(event);
+    if (deleteCancelButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      state.pendingDeleteLocation = "";
+      renderLocationCards();
+      return;
+    }
+
     const deleteButton = getLocationDeleteButton(event);
     if (deleteButton) {
       event.preventDefault();
       event.stopPropagation();
       const location = deleteButton.getAttribute("data-location") || "";
       if (location) {
-        await deleteLocation(location);
+        state.pendingDeleteLocation =
+          normalizeLocation(state.pendingDeleteLocation) === normalizeLocation(location) ? "" : location;
+        renderLocationCards();
       }
       return;
     }
@@ -527,6 +567,10 @@ function renderAdminControls() {
 
   renderAdminLoginButton(auth);
   renderAdminSearchResults();
+
+  if (!auth.authenticated && state.pendingDeleteLocation) {
+    state.pendingDeleteLocation = "";
+  }
 
   if (elements.locationGrid && state.locations.length) {
     renderLocationCards();
@@ -812,6 +856,7 @@ async function addLocation(location, displayName = location) {
 async function deleteLocation(location) {
   setLoading(true);
   setStatus(`Removing ${location}...`);
+  state.pendingDeleteLocation = "";
 
   const result = await apiRequest("/api/weather/watchlist", {
     method: "DELETE",
@@ -1014,20 +1059,36 @@ function renderLocationCards() {
       button.classList.add("is-focused");
     }
 
+    const isDeletePending = normalizeLocation(state.pendingDeleteLocation) === normalizeLocation(location);
+
     const deleteAction = showDeleteAction
       ? `
-          <button
-            type="button"
-            class="location-delete-btn"
-            data-location="${escapeHtml(location)}"
-            title="Remove ${escapeHtml(getLocationDisplayName(location))} from watchlist"
-            aria-label="Remove ${escapeHtml(getLocationDisplayName(location))} from watchlist"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M7 7L17 17"></path>
-              <path d="M17 7L7 17"></path>
-            </svg>
-          </button>
+          <div class="location-delete-group">
+            <button
+              type="button"
+              class="location-delete-btn"
+              data-location="${escapeHtml(location)}"
+              title="Remove ${escapeHtml(getLocationDisplayName(location))} from watchlist"
+              aria-label="Remove ${escapeHtml(getLocationDisplayName(location))} from watchlist"
+              aria-expanded="${isDeletePending ? "true" : "false"}"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 7L17 17"></path>
+                <path d="M17 7L7 17"></path>
+              </svg>
+            </button>
+            ${
+              isDeletePending
+                ? `
+                    <div class="location-delete-confirm" role="group" aria-label="Confirm remove ${escapeHtml(getLocationDisplayName(location))}">
+                      <span>Remove?</span>
+                      <button type="button" class="location-delete-confirm-btn" data-location="${escapeHtml(location)}">Yes</button>
+                      <button type="button" class="location-delete-cancel-btn" data-location="${escapeHtml(location)}">Cancel</button>
+                    </div>
+                  `
+                : ""
+            }
+          </div>
         `
       : "";
 
@@ -2168,6 +2229,24 @@ function getLocationDeleteButton(event) {
   return target.closest(".location-delete-btn[data-location]");
 }
 
+function getLocationDeleteConfirmButton(event) {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return null;
+  }
+
+  return target.closest(".location-delete-confirm-btn[data-location]");
+}
+
+function getLocationDeleteCancelButton(event) {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return null;
+  }
+
+  return target.closest(".location-delete-cancel-btn[data-location]");
+}
+
 function resolveCountryForLocation(location, daily = null) {
   const normalized = normalizeLocation(location);
   if (normalized && LOCATION_COUNTRY_BY_NAME[normalized]) {
@@ -2280,6 +2359,12 @@ function isKeyboardNavigationTarget(target) {
 }
 
 function handleGlobalKeydown(event) {
+  if (event.key === "Escape" && state.pendingDeleteLocation) {
+    state.pendingDeleteLocation = "";
+    renderLocationCards();
+    return;
+  }
+
   if (event.key === "Escape" && state.adminUiOpen) {
     closeAdminUi();
     return;
@@ -2478,7 +2563,7 @@ function setLoading(isLoading) {
   }
 
   elements.locationGrid
-    ?.querySelectorAll(".location-delete-btn")
+    ?.querySelectorAll(".location-delete-btn, .location-delete-confirm-btn, .location-delete-cancel-btn")
     .forEach((button) => {
       button.disabled = isLoading;
     });
