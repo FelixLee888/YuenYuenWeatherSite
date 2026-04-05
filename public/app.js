@@ -97,7 +97,6 @@ const SWIPE_CLICK_SUPPRESS_MS = 420;
 const DEFAULT_ADMIN_EMAIL = "jancefelix@gmail.com";
 
 let staticBundleCache = null;
-let googleIdentityScriptPromise = null;
 
 const state = {
   locations: [],
@@ -111,15 +110,16 @@ const state = {
   appConfig: null,
   adminAuth: {
     enabled: false,
-    provider: "google",
+    provider: "google-oauth",
     googleClientId: "",
+    loginPath: "/api/admin/login",
+    usesBackendOAuth: true,
     defaultAdminEmail: DEFAULT_ADMIN_EMAIL,
     allowedAdminEmails: [DEFAULT_ADMIN_EMAIL],
     authenticated: false,
     user: null,
     reason: ""
   },
-  googleIdentityInitializedClientId: "",
   suppressDeckClickUntil: 0,
   swipe: {
     tracking: false,
@@ -300,6 +300,7 @@ async function initialize() {
   setHeaderDetailState(false);
   await loadAppConfig();
   await refreshAdminSession();
+  handleAdminAuthReturn();
   await loadOverview();
 
   const queryLocation = (new URLSearchParams(window.location.search).get("location") || "").trim();
@@ -321,8 +322,10 @@ function normalizeAdminAuthPayload(payload) {
 
   return {
     enabled: Boolean(source.enabled),
-    provider: `${source.provider || "google"}`.trim() || "google",
+    provider: `${source.provider || "google-oauth"}`.trim() || "google-oauth",
     googleClientId: `${source.googleClientId || ""}`.trim(),
+    loginPath: `${source.loginPath || "/api/admin/login"}`.trim() || "/api/admin/login",
+    usesBackendOAuth: source.usesBackendOAuth !== false,
     defaultAdminEmail,
     allowedAdminEmails: allowedAdminEmails.length ? allowedAdminEmails : [defaultAdminEmail],
     authenticated: Boolean(source.authenticated),
@@ -352,7 +355,9 @@ async function loadAppConfig() {
       dataDir: "public/data",
       auth: normalizeAdminAuthPayload({
         enabled: false,
-        provider: "google",
+        provider: "google-oauth",
+        loginPath: null,
+        usesBackendOAuth: true,
         defaultAdminEmail: DEFAULT_ADMIN_EMAIL,
         allowedAdminEmails: [DEFAULT_ADMIN_EMAIL],
         reason: STATIC_ADMIN_UNAVAILABLE
@@ -373,7 +378,6 @@ async function refreshAdminSession() {
   }
 
   renderAdminControls();
-  await ensureGoogleIdentityReady();
 }
 
 async function logoutAdmin() {
@@ -386,13 +390,8 @@ async function logoutAdmin() {
     return;
   }
 
-  if (window.google?.accounts?.id?.disableAutoSelect) {
-    window.google.accounts.id.disableAutoSelect();
-  }
-
   state.adminAuth = normalizeAdminAuthPayload(result.data);
   renderAdminControls();
-  await ensureGoogleIdentityReady();
   setStatus("Signed out from admin mode.", "success");
 }
 
@@ -444,91 +443,57 @@ function renderAdminControls() {
   if (elements.googleSigninWrap) {
     elements.googleSigninWrap.classList.toggle("is-hidden", !auth.enabled || hasManageCard);
   }
+
+  renderAdminLoginButton(auth);
 }
 
-function loadGoogleIdentityScript() {
-  if (googleIdentityScriptPromise) {
-    return googleIdentityScriptPromise;
+function renderAdminLoginButton(auth) {
+  if (!elements.googleSigninWrap) {
+    return;
   }
 
-  googleIdentityScriptPromise = new Promise((resolve, reject) => {
-    if (window.google?.accounts?.id) {
-      resolve(window.google);
-      return;
-    }
+  elements.googleSigninWrap.innerHTML = "";
+  if (!auth.enabled || auth.authenticated || !auth.loginPath) {
+    return;
+  }
 
-    const script = document.createElement("script");
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    script.onload = () => resolve(window.google);
-    script.onerror = () => reject(new Error("Unable to load Google Identity Services."));
-    document.head.appendChild(script);
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "btn-secondary";
+  button.textContent = "Sign in with Google";
+  button.addEventListener("click", () => {
+    window.location.assign(buildAdminLoginUrl(auth));
   });
-
-  return googleIdentityScriptPromise;
+  elements.googleSigninWrap.appendChild(button);
 }
 
-async function ensureGoogleIdentityReady() {
-  const auth = normalizeAdminAuthPayload(state.adminAuth);
-  if (!auth.enabled || auth.authenticated || !elements.googleSigninWrap) {
-    return;
-  }
-
-  try {
-    await loadGoogleIdentityScript();
-    if (!window.google?.accounts?.id) {
-      throw new Error("Google Identity Services is unavailable.");
-    }
-
-    if (state.googleIdentityInitializedClientId !== auth.googleClientId) {
-      window.google.accounts.id.initialize({
-        client_id: auth.googleClientId,
-        callback: handleGoogleIdentityCredentialResponse,
-        auto_select: false,
-        cancel_on_tap_outside: true
-      });
-      state.googleIdentityInitializedClientId = auth.googleClientId;
-    }
-
-    elements.googleSigninWrap.innerHTML = "";
-    window.google.accounts.id.renderButton(elements.googleSigninWrap, {
-      theme: "outline",
-      size: "large",
-      shape: "pill",
-      text: "signin_with",
-      logo_alignment: "left",
-      width: 250
-    });
-  } catch (error) {
-    if (elements.adminIntro) {
-      elements.adminIntro.textContent = error?.message || "Unable to load Google sign-in.";
-    }
-  }
+function buildAdminLoginUrl(auth = state.adminAuth) {
+  const loginPath = `${auth?.loginPath || "/api/admin/login"}`.trim() || "/api/admin/login";
+  const url = new URL(resolveRequestUrl(loginPath));
+  const returnTo = `${window.location.pathname || "/"}${window.location.search || ""}${window.location.hash || ""}` || "/";
+  url.searchParams.set("return_to", returnTo);
+  return url.toString();
 }
 
-async function handleGoogleIdentityCredentialResponse(response) {
-  const credential = `${response?.credential || ""}`.trim();
-  if (!credential) {
-    setStatus("Google login did not return a credential.", "error");
+function handleAdminAuthReturn() {
+  const url = new URL(window.location.href);
+  const adminState = `${url.searchParams.get("admin") || ""}`.trim();
+  const adminMessage = `${url.searchParams.get("admin_message") || ""}`.trim();
+
+  if (!adminState && !adminMessage) {
     return;
   }
 
-  setLoading(true);
-  const result = await apiRequest("/api/admin/google-login", {
-    method: "POST",
-    body: JSON.stringify({ credential })
-  });
-  setLoading(false);
+  url.searchParams.delete("admin");
+  url.searchParams.delete("admin_message");
+  window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
 
-  if (!result.ok) {
-    setStatus(result.error || "Unable to sign in with Google.", "error");
+  if (adminState === "signed_in") {
+    setStatus(adminMessage || `Admin mode enabled for ${state.adminAuth.user?.email || "Google account"}.`, "success");
     return;
   }
 
-  state.adminAuth = normalizeAdminAuthPayload(result.data);
-  renderAdminControls();
-  setStatus(`Admin mode enabled for ${state.adminAuth.user?.email || "Google account"}.`, "success");
+  setStatus(adminMessage || "Unable to sign in with Google.", "error");
 }
 
 async function loadOverview() {
@@ -2385,8 +2350,10 @@ async function staticApiRequest(url, options = {}) {
   const apiPath = toApiPath(url);
   const staticAdminPayload = {
     enabled: false,
-    provider: "google",
+    provider: "google-oauth",
     googleClientId: null,
+    loginPath: null,
+    usesBackendOAuth: true,
     defaultAdminEmail: DEFAULT_ADMIN_EMAIL,
     allowedAdminEmails: [DEFAULT_ADMIN_EMAIL],
     authenticated: false,

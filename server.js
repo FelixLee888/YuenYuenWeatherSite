@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { existsSync, readFileSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
-import { createHmac, createSign, timingSafeEqual } from "node:crypto";
+import { createHmac, createSign, randomBytes, timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -18,15 +18,20 @@ const AIBOT_SYNC_TIMEOUT_MS = Number(process.env.AIBOT_SYNC_TIMEOUT_MS || 5000);
 const GOOGLE_SHEETS_SPREADSHEET_ID = (process.env.GOOGLE_SHEETS_SPREADSHEET_ID || "").trim();
 const GOOGLE_SHEETS_ENABLED = (process.env.GOOGLE_SHEETS_ENABLED || "1").trim() !== "0";
 const GOOGLE_OAUTH_ACCESS_TOKEN = (process.env.GOOGLE_OAUTH_ACCESS_TOKEN || "").trim();
+const GOOGLE_AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 const GOOGLE_SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
 const GOOGLE_METADATA_TOKEN_URL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token";
 const GOOGLE_CLIENT_ID = (process.env.GOOGLE_CLIENT_ID || "").trim();
+const GOOGLE_CLIENT_SECRET = (process.env.GOOGLE_CLIENT_SECRET || process.env.GOOGLE_OAUTH_CLIENT_SECRET || "").trim();
 const ADMIN_ALLOWED_EMAILS = parseEmailList(process.env.ADMIN_ALLOWED_EMAILS || "jancefelix@gmail.com");
 const ADMIN_SESSION_SECRET = (process.env.ADMIN_SESSION_SECRET || "").trim();
 const ADMIN_SESSION_COOKIE_NAME = "yyw_admin_session";
 const ADMIN_SESSION_TTL_MS = Number(process.env.ADMIN_SESSION_TTL_MS || 1000 * 60 * 60 * 24 * 7);
+const ADMIN_OAUTH_STATE_COOKIE_NAME = "yyw_admin_oauth_state";
+const ADMIN_OAUTH_STATE_TTL_MS = Number(process.env.ADMIN_OAUTH_STATE_TTL_MS || 1000 * 60 * 10);
+const ADMIN_OAUTH_CALLBACK_PATH = "/api/admin/oauth/callback";
 const googleTokenCache = {
   accessToken: "",
   expiresAtMs: 0
@@ -354,57 +359,109 @@ async function handleApi(req, res, requestUrl) {
     return;
   }
 
-  if (pathname === "/api/admin/google-login" && req.method === "POST") {
-    let body;
-    try {
-      body = await readJsonBody(req);
-    } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+  if (pathname === "/api/admin/login" && req.method === "GET") {
+    const returnTo = sanitizeReturnTo(requestUrl.searchParams.get("return_to"), req);
+    const authConfig = getAdminAuthConfig();
+    if (!authConfig.enabled) {
+      sendRedirect(res, 302, buildAdminReturnUrl(req, returnTo, {
+        admin: "error",
+        admin_message: authConfig.reason || "Google admin login is not configured."
+      }));
+      return;
+    }
+
+    const authorizationUrl = buildGoogleAdminAuthorizationUrl(req, res, returnTo);
+    sendRedirect(res, 302, authorizationUrl);
+    return;
+  }
+
+  if (pathname === ADMIN_OAUTH_CALLBACK_PATH && req.method === "GET") {
+    const requestError = `${requestUrl.searchParams.get("error") || ""}`.trim();
+    const requestErrorDescription = `${requestUrl.searchParams.get("error_description") || ""}`.trim();
+    const requestState = `${requestUrl.searchParams.get("state") || ""}`.trim();
+    const requestCode = `${requestUrl.searchParams.get("code") || ""}`.trim();
+    const oauthState = getAdminOauthStateFromRequest(req);
+    const returnTo = oauthState?.returnTo || "/";
+
+    clearAdminOauthStateCookie(res, req);
+
+    if (requestError) {
+      const message = requestErrorDescription || `Google login was not completed (${requestError}).`;
+      sendRedirect(res, 302, buildAdminReturnUrl(req, returnTo, {
+        admin: "error",
+        admin_message: message
+      }));
+      return;
+    }
+
+    if (!oauthState || !requestState || !constantTimeEquals(oauthState.token, requestState)) {
+      sendRedirect(res, 302, buildAdminReturnUrl(req, returnTo, {
+        admin: "error",
+        admin_message: "Google login could not be verified. Please try again."
+      }));
+      return;
+    }
+
+    if (!requestCode) {
+      sendRedirect(res, 302, buildAdminReturnUrl(req, returnTo, {
+        admin: "error",
+        admin_message: "Google login did not return an authorization code."
+      }));
       return;
     }
 
     const authConfig = getAdminAuthConfig();
     if (!authConfig.enabled) {
-      sendJson(res, 503, {
-        ok: false,
-        error: authConfig.reason || "Google admin login is not configured."
-      });
+      sendRedirect(res, 302, buildAdminReturnUrl(req, returnTo, {
+        admin: "error",
+        admin_message: authConfig.reason || "Google admin login is not configured."
+      }));
       return;
     }
 
-    const credential = `${body?.credential || body?.id_token || ""}`.trim();
-    if (!credential) {
-      sendJson(res, 400, {
-        ok: false,
-        error: "Body must include 'credential'."
-      });
+    let tokenPayload;
+    try {
+      tokenPayload = await exchangeGoogleAuthorizationCode(req, requestCode);
+    } catch (error) {
+      sendRedirect(res, 302, buildAdminReturnUrl(req, returnTo, {
+        admin: "error",
+        admin_message: error?.message || "Unable to complete Google login."
+      }));
       return;
     }
 
     let user;
     try {
-      user = await verifyGoogleIdToken(credential);
+      user = await verifyGoogleIdToken(tokenPayload.id_token);
     } catch (error) {
-      sendJson(res, 401, {
-        ok: false,
-        error: error?.message || "Google login verification failed."
-      });
+      sendRedirect(res, 302, buildAdminReturnUrl(req, returnTo, {
+        admin: "error",
+        admin_message: error?.message || "Google login verification failed."
+      }));
       return;
     }
 
     if (!isAllowedAdminEmail(user.email)) {
-      sendJson(res, 403, {
-        ok: false,
-        error: `Google account ${user.email} is not allowed to manage the watchlist.`
-      });
+      clearAdminSessionCookie(res, req);
+      sendRedirect(res, 302, buildAdminReturnUrl(req, returnTo, {
+        admin: "error",
+        admin_message: `Google account ${user.email} is not allowed to manage the watchlist.`
+      }));
       return;
     }
 
     setAdminSessionCookie(res, req, user);
-    sendJson(res, 200, {
-      ok: true,
-      message: `Signed in as ${user.email}.`,
-      data: buildAdminAuthPayload(req, user)
+    sendRedirect(res, 302, buildAdminReturnUrl(req, returnTo, {
+      admin: "signed_in",
+      admin_message: `Admin mode enabled for ${user.email}.`
+    }));
+    return;
+  }
+
+  if (pathname === "/api/admin/google-login" && req.method === "POST") {
+    sendJson(res, 410, {
+      ok: false,
+      error: "Deprecated. Use /api/admin/login for backend-managed Google OAuth."
     });
     return;
   }
@@ -619,6 +676,7 @@ function getAdminAuthConfig() {
     return {
       enabled: false,
       googleClientId: GOOGLE_CLIENT_ID || null,
+      usesBackendOAuth: true,
       reason: "Google Sheets watchlist storage is not configured."
     };
   }
@@ -627,7 +685,17 @@ function getAdminAuthConfig() {
     return {
       enabled: false,
       googleClientId: null,
+      usesBackendOAuth: true,
       reason: "GOOGLE_CLIENT_ID is not configured."
+    };
+  }
+
+  if (!GOOGLE_CLIENT_SECRET) {
+    return {
+      enabled: false,
+      googleClientId: GOOGLE_CLIENT_ID,
+      usesBackendOAuth: true,
+      reason: "GOOGLE_CLIENT_SECRET is not configured."
     };
   }
 
@@ -635,13 +703,15 @@ function getAdminAuthConfig() {
     return {
       enabled: false,
       googleClientId: GOOGLE_CLIENT_ID,
+      usesBackendOAuth: true,
       reason: "Admin session secret is unavailable."
     };
   }
 
   return {
     enabled: true,
-    googleClientId: GOOGLE_CLIENT_ID,
+      googleClientId: GOOGLE_CLIENT_ID,
+      usesBackendOAuth: true,
     reason: null
   };
 }
@@ -844,28 +914,33 @@ function buildCookieHeader(name, value, req, overrides = {}) {
   return parts.join("; ");
 }
 
-function createAdminSessionToken(user) {
+function appendSetCookieHeader(res, cookieValue) {
+  const existing = res.getHeader("Set-Cookie");
+  if (!existing) {
+    res.setHeader("Set-Cookie", cookieValue);
+    return;
+  }
+
+  if (Array.isArray(existing)) {
+    res.setHeader("Set-Cookie", [...existing, cookieValue]);
+    return;
+  }
+
+  res.setHeader("Set-Cookie", [existing, cookieValue]);
+}
+
+function createSignedAdminPayloadToken(payload) {
   const secret = resolveAdminSessionSecret();
   if (!secret) {
     throw new Error("Admin session secret is unavailable.");
   }
-
-  const nowSeconds = Math.floor(Date.now() / 1000);
-  const payload = {
-    email: `${user?.email || ""}`.trim().toLowerCase(),
-    name: `${user?.name || user?.email || ""}`.trim(),
-    picture: `${user?.picture || ""}`.trim() || null,
-    sub: `${user?.sub || ""}`.trim() || null,
-    iat: nowSeconds,
-    exp: nowSeconds + Math.max(60, Math.floor(ADMIN_SESSION_TTL_MS / 1000))
-  };
 
   const encodedPayload = base64UrlEncode(JSON.stringify(payload));
   const signature = base64UrlEncode(createHmac("sha256", secret).update(encodedPayload).digest());
   return `${encodedPayload}.${signature}`;
 }
 
-function verifyAdminSessionToken(token) {
+function verifySignedAdminPayloadToken(token) {
   const secret = resolveAdminSessionSecret();
   if (!secret || !token || !token.includes(".")) {
     return null;
@@ -877,19 +952,33 @@ function verifyAdminSessionToken(token) {
   }
 
   const expectedSignature = base64UrlEncode(createHmac("sha256", secret).update(encodedPayload).digest());
-  const providedBuffer = Buffer.from(providedSignature);
-  const expectedBuffer = Buffer.from(expectedSignature);
-  if (providedBuffer.length !== expectedBuffer.length || !timingSafeEqual(providedBuffer, expectedBuffer)) {
+  if (!constantTimeEquals(expectedSignature, providedSignature)) {
     return null;
   }
 
-  let payload;
   try {
-    payload = JSON.parse(base64UrlDecode(encodedPayload));
+    return JSON.parse(base64UrlDecode(encodedPayload));
   } catch {
     return null;
   }
+}
 
+function createAdminSessionToken(user) {
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const payload = {
+    email: `${user?.email || ""}`.trim().toLowerCase(),
+    name: `${user?.name || user?.email || ""}`.trim(),
+    picture: `${user?.picture || ""}`.trim() || null,
+    sub: `${user?.sub || ""}`.trim() || null,
+    iat: nowSeconds,
+    exp: nowSeconds + Math.max(60, Math.floor(ADMIN_SESSION_TTL_MS / 1000))
+  };
+
+  return createSignedAdminPayloadToken(payload);
+}
+
+function verifyAdminSessionToken(token) {
+  const payload = verifySignedAdminPayloadToken(token);
   const email = `${payload?.email || ""}`.trim().toLowerCase();
   const exp = Number(payload?.exp);
   if (!email || !Number.isFinite(exp) || exp * 1000 <= Date.now() || !isAllowedAdminEmail(email)) {
@@ -922,13 +1011,62 @@ function getAdminSessionFromRequest(req) {
 
 function setAdminSessionCookie(res, req, user) {
   const token = createAdminSessionToken(user);
-  res.setHeader("Set-Cookie", buildCookieHeader(ADMIN_SESSION_COOKIE_NAME, token, req, {
+  appendSetCookieHeader(res, buildCookieHeader(ADMIN_SESSION_COOKIE_NAME, token, req, {
     maxAgeSeconds: Math.floor(ADMIN_SESSION_TTL_MS / 1000)
   }));
 }
 
 function clearAdminSessionCookie(res, req) {
-  res.setHeader("Set-Cookie", buildCookieHeader(ADMIN_SESSION_COOKIE_NAME, "", req, {
+  appendSetCookieHeader(res, buildCookieHeader(ADMIN_SESSION_COOKIE_NAME, "", req, {
+    maxAgeSeconds: 0
+  }));
+}
+
+function createAdminOauthStateToken(returnTo) {
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  return createSignedAdminPayloadToken({
+    type: "admin_oauth_state",
+    returnTo,
+    nonce: base64UrlEncode(randomBytes(18)),
+    iat: nowSeconds,
+    exp: nowSeconds + Math.max(60, Math.floor(ADMIN_OAUTH_STATE_TTL_MS / 1000))
+  });
+}
+
+function verifyAdminOauthStateToken(token) {
+  const payload = verifySignedAdminPayloadToken(token);
+  const exp = Number(payload?.exp);
+  const returnTo = `${payload?.returnTo || ""}`.trim();
+  if (
+    payload?.type !== "admin_oauth_state" ||
+    !returnTo ||
+    !Number.isFinite(exp) ||
+    exp * 1000 <= Date.now()
+  ) {
+    return null;
+  }
+
+  return {
+    token,
+    returnTo,
+    nonce: `${payload?.nonce || ""}`.trim() || null,
+    exp
+  };
+}
+
+function getAdminOauthStateFromRequest(req) {
+  const cookies = getRequestCookies(req);
+  return verifyAdminOauthStateToken(cookies[ADMIN_OAUTH_STATE_COOKIE_NAME]);
+}
+
+function setAdminOauthStateCookie(res, req, token) {
+  appendSetCookieHeader(res, buildCookieHeader(ADMIN_OAUTH_STATE_COOKIE_NAME, token, req, {
+    maxAgeSeconds: Math.floor(ADMIN_OAUTH_STATE_TTL_MS / 1000)
+  }));
+}
+
+function clearAdminOauthStateCookie(res, req) {
+  appendSetCookieHeader(res, buildCookieHeader(ADMIN_OAUTH_STATE_COOKIE_NAME, "", req, {
     maxAgeSeconds: 0
   }));
 }
@@ -939,8 +1077,11 @@ function buildAdminAuthPayload(req, sessionOverride) {
 
   return {
     enabled: authConfig.enabled,
-    provider: "google",
+    provider: "google-oauth",
     googleClientId: authConfig.enabled ? authConfig.googleClientId : null,
+    loginPath: "/api/admin/login",
+    callbackPath: ADMIN_OAUTH_CALLBACK_PATH,
+    usesBackendOAuth: true,
     defaultAdminEmail: ADMIN_ALLOWED_EMAILS[0] || null,
     allowedAdminEmails: ADMIN_ALLOWED_EMAILS,
     authenticated: Boolean(session),
@@ -1014,6 +1155,102 @@ async function verifyGoogleIdToken(idToken) {
     picture: `${payload?.picture || ""}`.trim() || null,
     sub: `${payload?.sub || ""}`.trim() || null
   };
+}
+
+function getRequestOrigin(req) {
+  const forwardedProto = `${req?.headers?.["x-forwarded-proto"] || ""}`
+    .split(",")[0]
+    .trim()
+    .toLowerCase();
+  const protocol = forwardedProto || (req?.socket?.encrypted ? "https" : "http");
+  const hostHeader = `${req?.headers?.["x-forwarded-host"] || req?.headers?.host || ""}`
+    .split(",")[0]
+    .trim();
+  const host = hostHeader || `127.0.0.1:${PORT}`;
+  return `${protocol}://${host}`;
+}
+
+function sanitizeReturnTo(rawValue, req) {
+  const fallback = "/";
+  const raw = `${rawValue || ""}`.trim();
+  if (!raw) {
+    return fallback;
+  }
+
+  const origin = getRequestOrigin(req);
+
+  if (raw.startsWith("/") && !raw.startsWith("//")) {
+    try {
+      const url = new URL(raw, origin);
+      return `${url.pathname}${url.search}${url.hash}`;
+    } catch {
+      return fallback;
+    }
+  }
+
+  try {
+    const url = new URL(raw);
+    if (url.origin !== origin) {
+      return fallback;
+    }
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return fallback;
+  }
+}
+
+function buildAdminReturnUrl(req, returnTo, params = {}) {
+  const base = new URL(sanitizeReturnTo(returnTo, req), getRequestOrigin(req));
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || `${value}` === "") {
+      base.searchParams.delete(key);
+      continue;
+    }
+    base.searchParams.set(key, `${value}`);
+  }
+  return `${base.pathname}${base.search}${base.hash}`;
+}
+
+function buildGoogleOAuthCallbackUrl(req) {
+  return new URL(ADMIN_OAUTH_CALLBACK_PATH, getRequestOrigin(req)).toString();
+}
+
+function buildGoogleAdminAuthorizationUrl(req, res, returnTo) {
+  const authConfig = getAdminAuthConfig();
+  const stateToken = createAdminOauthStateToken(returnTo);
+  setAdminOauthStateCookie(res, req, stateToken);
+
+  const url = new URL(GOOGLE_AUTHORIZATION_URL);
+  url.searchParams.set("client_id", authConfig.googleClientId);
+  url.searchParams.set("redirect_uri", buildGoogleOAuthCallbackUrl(req));
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("scope", "openid email");
+  url.searchParams.set("prompt", "select_account");
+  url.searchParams.set("state", stateToken);
+  return url.toString();
+}
+
+async function exchangeGoogleAuthorizationCode(req, code) {
+  const response = await fetch(GOOGLE_TOKEN_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: new URLSearchParams({
+      code,
+      client_id: GOOGLE_CLIENT_ID,
+      client_secret: GOOGLE_CLIENT_SECRET,
+      redirect_uri: buildGoogleOAuthCallbackUrl(req),
+      grant_type: "authorization_code"
+    })
+  });
+
+  const payload = await response.json();
+  if (!response.ok || !payload?.id_token) {
+    throw new Error(toErrorMessage(payload, "Unable to exchange Google authorization code."));
+  }
+
+  return payload;
 }
 
 async function getGoogleMetadataAccessToken() {
@@ -2758,6 +2995,14 @@ function applyApiHeaders(res) {
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
 }
 
+function sendRedirect(res, statusCode, location) {
+  res.writeHead(statusCode, {
+    Location: location,
+    "Content-Length": "0"
+  });
+  res.end();
+}
+
 function sendJson(res, statusCode, payload) {
   const body = JSON.stringify(payload, null, 2);
   res.writeHead(statusCode, {
@@ -2765,6 +3010,15 @@ function sendJson(res, statusCode, payload) {
     "Content-Length": Buffer.byteLength(body)
   });
   res.end(body);
+}
+
+function constantTimeEquals(left, right) {
+  const leftBuffer = Buffer.from(`${left || ""}`);
+  const rightBuffer = Buffer.from(`${right || ""}`);
+  if (leftBuffer.length !== rightBuffer.length) {
+    return false;
+  }
+  return timingSafeEqual(leftBuffer, rightBuffer);
 }
 
 async function serveStatic(res, pathname) {

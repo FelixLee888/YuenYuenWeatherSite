@@ -57,13 +57,15 @@ Required for Sheet sync:
 
 Required for admin login:
 
-- `GOOGLE_CLIENT_ID` (Google OAuth web client id for the site/backend origin)
+- `GOOGLE_CLIENT_ID` (Google OAuth client id from the `weather-ai-bot-488422` project)
+- `GOOGLE_CLIENT_SECRET` (paired client secret for the same OAuth client)
 - `ADMIN_ALLOWED_EMAILS` (comma-separated list, defaults to `jancefelix@gmail.com`)
 
 Optional for admin login:
 
 - `ADMIN_SESSION_SECRET`
 - `ADMIN_SESSION_TTL_MS`
+- `ADMIN_OAUTH_STATE_TTL_MS`
 
 Alternative credentials:
 
@@ -97,7 +99,8 @@ Recommended env vars for Cloud Run:
 
 - `GOOGLE_SHEETS_ENABLED=1`
 - `GOOGLE_SHEETS_SPREADSHEET_ID=1g9_1I1xyt7iO922yNXckPswnqV5ATIzLo3NQ6IJ4O5k`
-- `GOOGLE_CLIENT_ID=<google oauth web client id>`
+- `GOOGLE_CLIENT_ID=<google oauth client id from weather-ai-bot-488422>`
+- `GOOGLE_CLIENT_SECRET=<matching oauth client secret>`
 - `ADMIN_ALLOWED_EMAILS=jancefelix@gmail.com`
 - `ADMIN_SESSION_SECRET=<random long secret>`
 - `AIBOT_WATCHLIST_SYNC_URL=<optional>`
@@ -116,7 +119,19 @@ gcloud run deploy yuen-yuen-weather \
   --allow-unauthenticated
 ```
 
-After deploy, add the Cloud Run service URL origin to the Google OAuth web client as an authorized JavaScript origin. Without that, Google login for the admin UI will stay blocked by OAuth origin checks.
+For backend-managed OAuth, add this redirect URI to the Google OAuth client in the `weather-ai-bot-488422` project:
+
+- `https://<your-cloud-run-host>/api/admin/oauth/callback`
+
+If you use the Cloud Run frontend directly, also add the service origin itself as an authorized origin:
+
+- `https://<your-cloud-run-host>`
+
+Important:
+
+- This project now uses a backend-managed OAuth redirect flow.
+- The required client is a standard Google Auth Platform "Web application" OAuth client.
+- `gcloud iam oauth-clients` creates managed IAM/IAP OAuth clients, which are not a drop-in replacement for the normal Sign in with Google web client used here.
 
 ## Google Sheet sync commands
 ```bash
@@ -145,7 +160,8 @@ Workflows:
 - `GET /health`
 - `GET /api/config`
 - `GET /api/admin/session`
-- `POST /api/admin/google-login` with JSON body: `{ "credential": "<google-id-token>" }`
+- `GET /api/admin/login?return_to=/`
+- `GET /api/admin/oauth/callback`
 - `POST /api/admin/logout`
 - `GET /api/weather?location=<name>`
 - `GET /api/weather/daily?location=<name>`
