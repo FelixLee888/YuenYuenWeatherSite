@@ -285,6 +285,17 @@ function bindEvents() {
       return;
     }
 
+    const deleteButton = getLocationDeleteButton(event);
+    if (deleteButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      const location = deleteButton.getAttribute("data-location") || "";
+      if (location) {
+        await deleteLocation(location);
+      }
+      return;
+    }
+
     const button = getLocationButton(event);
     if (!button) {
       return;
@@ -306,6 +317,12 @@ function bindEvents() {
   });
 
   elements.locationGrid.addEventListener("dblclick", async (event) => {
+    if (getLocationDeleteButton(event)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
     if (isMobileViewport()) {
       return;
     }
@@ -510,6 +527,10 @@ function renderAdminControls() {
 
   renderAdminLoginButton(auth);
   renderAdminSearchResults();
+
+  if (elements.locationGrid && state.locations.length) {
+    renderLocationCards();
+  }
 }
 
 function renderAdminLoginButton(auth) {
@@ -946,6 +967,7 @@ function renderLocationCards() {
   const actionHint = isMobileViewport()
     ? "Swipe or tap for detail"
     : "Arrows browse, double-click opens";
+  const showDeleteAction = Boolean(state.adminAuth?.authenticated);
 
   for (let index = 0; index < state.locations.length; index += 1) {
     const location = state.locations[index];
@@ -980,16 +1002,34 @@ function renderLocationCards() {
     const displayCondition = cleanConditionForCard(location, condition);
     const country = resolveCountryForLocation(location, daily);
 
-    const button = document.createElement("button");
-    button.type = "button";
+    const button = document.createElement("article");
     button.className = "location-card";
     button.setAttribute("data-location", location);
+    button.setAttribute("role", "button");
+    button.setAttribute("tabindex", "0");
     button.setAttribute("aria-label", `${location}. ${actionHint}`);
     button.style.background = `linear-gradient(160deg, ${tone.a}, ${tone.b})`;
 
     if (normalizeLocation(state.focusedLocation) === normalizeLocation(location)) {
       button.classList.add("is-focused");
     }
+
+    const deleteAction = showDeleteAction
+      ? `
+          <button
+            type="button"
+            class="location-delete-btn"
+            data-location="${escapeHtml(location)}"
+            title="Remove ${escapeHtml(getLocationDisplayName(location))} from watchlist"
+            aria-label="Remove ${escapeHtml(getLocationDisplayName(location))} from watchlist"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M7 7L17 17"></path>
+              <path d="M17 7L7 17"></path>
+            </svg>
+          </button>
+        `
+      : "";
 
     button.innerHTML = `
       <div class="location-card-inner">
@@ -1000,6 +1040,7 @@ function renderLocationCards() {
         </div>
         <div class="location-head-actions">
           <p class="location-time">${escapeHtml(formatWeatherDateShort(weatherDate))}</p>
+          ${deleteAction}
         </div>
       </div>
       <div class="location-main">
@@ -1046,7 +1087,7 @@ function renderLocationCards() {
 }
 
 function applyCoverflowTransforms() {
-  const cards = Array.from(elements.locationGrid.querySelectorAll("button[data-location]"));
+  const cards = Array.from(elements.locationGrid.querySelectorAll(".location-card[data-location]"));
   if (!cards.length) {
     return;
   }
@@ -1103,7 +1144,7 @@ async function playDetailTransition(location) {
     return;
   }
 
-  const cards = Array.from(elements.locationGrid.querySelectorAll("button[data-location]"));
+  const cards = Array.from(elements.locationGrid.querySelectorAll(".location-card[data-location]"));
   const targetCard = cards.find(
     (card) => normalizeLocation(card.getAttribute("data-location") || "") === normalizeLocation(location)
   );
@@ -2115,7 +2156,16 @@ function getLocationButton(event) {
     return null;
   }
 
-  return target.closest("button[data-location]");
+  return target.closest(".location-card[data-location]");
+}
+
+function getLocationDeleteButton(event) {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return null;
+  }
+
+  return target.closest(".location-delete-btn[data-location]");
 }
 
 function resolveCountryForLocation(location, daily = null) {
@@ -2426,6 +2476,12 @@ function setLoading(isLoading) {
   if (elements.adminSearchResults) {
     elements.adminSearchResults.classList.toggle("is-disabled", isLoading);
   }
+
+  elements.locationGrid
+    ?.querySelectorAll(".location-delete-btn")
+    .forEach((button) => {
+      button.disabled = isLoading;
+    });
 }
 
 function setStatus(message, type = "info") {

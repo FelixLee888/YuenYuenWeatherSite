@@ -589,6 +589,7 @@ body.is-detail-view .admin-menu {
   --card-base-transform: translateX(-50%);
   --card-base-opacity: 1;
   --card-base-filter: brightness(1);
+  appearance: none;
   position: absolute;
   left: 50%;
   top: var(--deck-top-offset);
@@ -603,6 +604,7 @@ body.is-detail-view .admin-menu {
   display: flex;
   flex-direction: column;
   text-align: left;
+  cursor: pointer;
   transform-origin: center top;
   transform-style: preserve-3d;
   backface-visibility: hidden;
@@ -647,6 +649,49 @@ body.is-detail-view .admin-menu {
   align-items: center;
   gap: 0.32rem;
   flex-shrink: 0;
+}
+
+.location-delete-btn {
+  appearance: none;
+  width: 1.7rem;
+  height: 1.7rem;
+  padding: 0;
+  border: 1px solid rgba(195, 219, 250, 0.26);
+  border-radius: 999px;
+  background: rgba(18, 39, 64, 0.74);
+  color: #eef6ff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, opacity 0.18s ease;
+}
+
+.location-delete-btn:hover {
+  background: rgba(122, 13, 25, 0.76);
+  border-color: rgba(255, 194, 205, 0.58);
+  transform: translateY(-1px);
+}
+
+.location-delete-btn:focus-visible {
+  outline: 2px solid #f5c3cb;
+  outline-offset: 2px;
+}
+
+.location-delete-btn:disabled {
+  opacity: 0.45;
+  cursor: wait;
+  transform: none;
+}
+
+.location-delete-btn svg {
+  width: 0.82rem;
+  height: 0.82rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.3;
+  stroke-linecap: round;
 }
 
 .location-title-wrap {
