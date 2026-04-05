@@ -1328,7 +1328,7 @@ async function searchLocationCandidates(query) {
 
 function buildLocationSearchCandidate(row) {
   const name = `${row?.name || ""}`.trim();
-  const country = `${row?.country || ""}`.trim();
+  const country = resolveLocationSearchCountry(row);
   if (!name || !country) {
     return null;
   }
@@ -1356,6 +1356,25 @@ function buildLocationSearchCandidate(row) {
     longitude: Number.isFinite(longitude) ? longitude : null,
     timezone: `${row?.timezone || ""}`.trim() || null
   };
+}
+
+function resolveLocationSearchCountry(row) {
+  const explicitCountry = `${row?.country || ""}`.trim();
+  if (explicitCountry) {
+    return explicitCountry;
+  }
+
+  const countryCode = `${row?.country_code || ""}`.trim().toUpperCase();
+  if (!countryCode) {
+    return "";
+  }
+
+  try {
+    const displayNames = new Intl.DisplayNames(["en"], { type: "region" });
+    return `${displayNames.of(countryCode) || ""}`.trim();
+  } catch {
+    return countryCode;
+  }
 }
 
 function buildWatchlistLocationLabel({ name, country, admin1, admin2 }) {
