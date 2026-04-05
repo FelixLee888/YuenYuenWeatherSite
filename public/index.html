@@ -28,6 +28,68 @@
           </div>
         </div>
         <div class="topbar-actions">
+          <div id="adminMenu" class="admin-menu">
+            <button
+              id="adminToggleBtn"
+              type="button"
+              class="icon-btn admin-toggle-btn"
+              title="Admin watchlist tools"
+              aria-label="Admin watchlist tools"
+              aria-haspopup="dialog"
+              aria-expanded="false"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 13.2a3.2 3.2 0 1 0 0-6.4a3.2 3.2 0 0 0 0 6.4Z" />
+                <path d="M5.4 19.2c1.5-2.2 3.8-3.3 6.6-3.3s5.1 1.1 6.6 3.3" />
+                <path d="M18.5 3.9l.7 1.5l1.5.7l-1.5.7l-.7 1.5l-.7-1.5l-1.5-.7l1.5-.7z" />
+              </svg>
+            </button>
+
+            <div id="adminPopover" class="admin-popover is-hidden" role="dialog" aria-label="Admin watchlist tools" aria-modal="false">
+              <div class="admin-popover-head">
+                <div class="admin-card-copy">
+                  <p class="admin-kicker">Admin</p>
+                  <h2 class="admin-title">Watchlist Manager</h2>
+                </div>
+                <button id="adminCloseBtn" type="button" class="icon-btn admin-close-btn" aria-label="Close admin tools">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 6L18 18" />
+                    <path d="M18 6L6 18" />
+                  </svg>
+                </button>
+              </div>
+
+              <article id="adminLoginCard" class="admin-panel is-hidden">
+                <p id="adminIntro" class="muted">Sign in with Google to add new locations to the shared watchlist.</p>
+                <div id="googleSigninWrap" class="google-signin-wrap" aria-live="polite"></div>
+              </article>
+
+              <article id="adminManageCard" class="admin-panel is-hidden">
+                <div class="admin-session-row">
+                  <p id="adminSignedInAs" class="muted">Signed in as -</p>
+                  <button id="adminLogoutBtn" type="button" class="btn-secondary admin-logout-btn">Sign out</button>
+                </div>
+
+                <form id="adminAddLocationForm" class="admin-search-form">
+                  <label class="sr-only" for="adminLocationInput">Search city name</label>
+                  <input
+                    id="adminLocationInput"
+                    class="admin-input"
+                    type="text"
+                    name="location"
+                    placeholder="Search city name"
+                    autocomplete="off"
+                    spellcheck="false"
+                  />
+                  <button id="adminAddLocationBtn" type="submit">Add selected</button>
+                </form>
+
+                <p id="adminHelperText" class="muted">Search a city, choose the correct country match, then add it to the shared Google Sheet watchlist.</p>
+                <p id="adminSearchMeta" class="admin-search-meta muted">Type at least 2 characters to search.</p>
+                <div id="adminSearchResults" class="admin-search-results" role="listbox" aria-label="Suggested city matches"></div>
+              </article>
+            </div>
+          </div>
           <button id="detailBackBtn" type="button" class="icon-btn detail-back-btn" title="Return to card flow" aria-label="Return to card flow">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M15 18L9 12L15 6" />
@@ -39,44 +101,6 @@
 
     <main>
       <section id="overviewPage" class="page overview-page">
-        <section id="adminSection" class="admin-section is-hidden" aria-label="Admin controls">
-          <article id="adminLoginCard" class="admin-card is-hidden">
-            <div class="admin-card-copy">
-              <p class="admin-kicker">Admin</p>
-              <h2 class="admin-title">Watchlist Manager</h2>
-              <p id="adminIntro" class="muted">Sign in with Google to add new locations to the shared watchlist.</p>
-            </div>
-            <div id="googleSigninWrap" class="google-signin-wrap" aria-live="polite"></div>
-          </article>
-
-          <article id="adminManageCard" class="admin-card is-hidden">
-            <div class="admin-card-top">
-              <div class="admin-card-copy">
-                <p class="admin-kicker">Admin</p>
-                <h2 class="admin-title">Watchlist Manager</h2>
-                <p id="adminSignedInAs" class="muted">Signed in as -</p>
-              </div>
-              <button id="adminLogoutBtn" type="button" class="btn-secondary admin-logout-btn">Sign out</button>
-            </div>
-
-            <form id="adminAddLocationForm" class="admin-add-form">
-              <label class="sr-only" for="adminLocationInput">New location</label>
-              <input
-                id="adminLocationInput"
-                class="admin-input"
-                type="text"
-                name="location"
-                placeholder="Add a new location"
-                autocomplete="off"
-                spellcheck="false"
-              />
-              <button id="adminAddLocationBtn" type="submit">Add location</button>
-            </form>
-
-            <p id="adminHelperText" class="muted">Adds to the shared Google Sheet watchlist. The Pi bot will pick up the new location from that sheet.</p>
-          </article>
-        </section>
-
         <p id="statusText" class="status status-hidden" aria-live="polite"></p>
         <div id="locationGrid" class="location-grid" aria-live="polite"></div>
       </section>

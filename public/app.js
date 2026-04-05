@@ -120,6 +120,16 @@ const state = {
     user: null,
     reason: ""
   },
+  adminUiOpen: false,
+  adminSearch: {
+    query: "",
+    results: [],
+    selectedValue: "",
+    searching: false,
+    message: "Type at least 2 characters to search.",
+    debounceId: 0,
+    requestId: 0
+  },
   suppressDeckClickUntil: 0,
   swipe: {
     tracking: false,
@@ -140,7 +150,10 @@ const elements = {
   homeBtn: document.getElementById("homeBtn"),
   statusText: document.getElementById("statusText"),
   overviewPage: document.getElementById("overviewPage"),
-  adminSection: document.getElementById("adminSection"),
+  adminMenu: document.getElementById("adminMenu"),
+  adminToggleBtn: document.getElementById("adminToggleBtn"),
+  adminPopover: document.getElementById("adminPopover"),
+  adminCloseBtn: document.getElementById("adminCloseBtn"),
   adminLoginCard: document.getElementById("adminLoginCard"),
   adminManageCard: document.getElementById("adminManageCard"),
   adminIntro: document.getElementById("adminIntro"),
@@ -151,6 +164,8 @@ const elements = {
   adminLocationInput: document.getElementById("adminLocationInput"),
   adminAddLocationBtn: document.getElementById("adminAddLocationBtn"),
   adminHelperText: document.getElementById("adminHelperText"),
+  adminSearchMeta: document.getElementById("adminSearchMeta"),
+  adminSearchResults: document.getElementById("adminSearchResults"),
   detailPage: document.getElementById("detailPage"),
   detailViewport: document.getElementById("detailViewport"),
   detailContent: document.getElementById("detailContent"),
@@ -198,27 +213,70 @@ function bindEvents() {
     showOverviewPage();
   });
 
+  elements.adminToggleBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleAdminUi();
+  });
+
+  elements.adminCloseBtn?.addEventListener("click", () => {
+    closeAdminUi();
+  });
+
   elements.adminLogoutBtn?.addEventListener("click", async () => {
     await logoutAdmin();
   });
 
   elements.adminAddLocationForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const location = `${elements.adminLocationInput?.value || ""}`.trim();
-    if (!location) {
-      setStatus("Enter a location to add to the shared watchlist.", "error");
+    const candidate = state.adminSearch.results.find((item) => item.location === state.adminSearch.selectedValue) || null;
+    if (!candidate) {
+      setStatus("Choose a suggested city before adding it to the watchlist.", "error");
       elements.adminLocationInput?.focus();
       return;
     }
 
-    const added = await addLocation(location);
-    if (added && elements.adminLocationInput) {
-      elements.adminLocationInput.value = "";
+    const added = await addLocation(candidate.location, candidate.name);
+    if (added) {
+      clearAdminSearch();
+      closeAdminUi();
     }
+  });
+
+  elements.adminLocationInput?.addEventListener("input", (event) => {
+    const value = `${event.target?.value || ""}`.trim();
+    state.adminSearch.query = value;
+    state.adminSearch.selectedValue = "";
+    queueAdminLocationSearch(value);
+    renderAdminControls();
+  });
+
+  elements.adminSearchResults?.addEventListener("click", (event) => {
+    const option = event.target instanceof Element ? event.target.closest("button[data-location]") : null;
+    if (!option) {
+      return;
+    }
+
+    const value = option.getAttribute("data-location") || "";
+    if (!value) {
+      return;
+    }
+
+    state.adminSearch.selectedValue = value;
+    renderAdminControls();
   });
 
   elements.detailBackBtn?.addEventListener("click", () => {
     showOverviewPage();
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!state.adminUiOpen || !elements.adminMenu) {
+      return;
+    }
+
+    if (event.target instanceof Node && !elements.adminMenu.contains(event.target)) {
+      closeAdminUi();
+    }
   });
 
   elements.locationGrid.addEventListener("click", async (event) => {
@@ -391,6 +449,7 @@ async function logoutAdmin() {
   }
 
   state.adminAuth = normalizeAdminAuthPayload(result.data);
+  clearAdminSearch();
   renderAdminControls();
   setStatus("Signed out from admin mode.", "success");
 }
@@ -398,19 +457,17 @@ async function logoutAdmin() {
 function renderAdminControls() {
   const auth = normalizeAdminAuthPayload(state.adminAuth);
   const hasManageCard = auth.authenticated && auth.user?.email;
-
-  if (!elements.adminSection) {
-    return;
-  }
-
-  const showSection = auth.enabled || Boolean(auth.reason) || Boolean(auth.authenticated);
-  elements.adminSection.classList.toggle("is-hidden", !showSection);
   elements.adminLoginCard?.classList.toggle("is-hidden", hasManageCard);
   elements.adminManageCard?.classList.toggle("is-hidden", !hasManageCard);
+  elements.adminPopover?.classList.toggle("is-hidden", !state.adminUiOpen);
+  elements.adminMenu?.classList.toggle("is-disabled", !auth.enabled && !auth.authenticated);
+  elements.adminToggleBtn?.setAttribute("aria-expanded", state.adminUiOpen ? "true" : "false");
+  elements.adminToggleBtn?.classList.toggle("is-active", state.adminUiOpen);
+  elements.adminToggleBtn?.classList.toggle("is-authenticated", hasManageCard);
 
   if (elements.adminIntro) {
     if (auth.enabled) {
-      elements.adminIntro.textContent = `Sign in with Google as ${auth.defaultAdminEmail} to add new locations to the shared watchlist.`;
+      elements.adminIntro.textContent = `Sign in with Google as ${auth.defaultAdminEmail} to open admin tools and manage the shared watchlist.`;
     } else {
       elements.adminIntro.textContent = auth.reason || STATIC_ADMIN_UNAVAILABLE;
     }
@@ -424,16 +481,19 @@ function renderAdminControls() {
 
   if (elements.adminHelperText) {
     elements.adminHelperText.textContent = auth.enabled
-      ? "Adds to the shared Google Sheet watchlist. The Pi bot will pick up the new location from that sheet."
+      ? "Search for the exact city match, then confirm it to add the location to the shared Google Sheet watchlist."
       : auth.reason || STATIC_ADMIN_UNAVAILABLE;
   }
 
   if (elements.adminLocationInput) {
     elements.adminLocationInput.disabled = !hasManageCard;
+    if (elements.adminLocationInput.value !== state.adminSearch.query) {
+      elements.adminLocationInput.value = state.adminSearch.query;
+    }
   }
 
   if (elements.adminAddLocationBtn) {
-    elements.adminAddLocationBtn.disabled = !hasManageCard;
+    elements.adminAddLocationBtn.disabled = !hasManageCard || !state.adminSearch.selectedValue || state.adminSearch.searching;
   }
 
   if (elements.adminLogoutBtn) {
@@ -444,7 +504,12 @@ function renderAdminControls() {
     elements.googleSigninWrap.classList.toggle("is-hidden", !auth.enabled || hasManageCard);
   }
 
+  if (elements.adminSearchMeta) {
+    elements.adminSearchMeta.textContent = state.adminSearch.message;
+  }
+
   renderAdminLoginButton(auth);
+  renderAdminSearchResults();
 }
 
 function renderAdminLoginButton(auth) {
@@ -487,13 +552,143 @@ function handleAdminAuthReturn() {
   url.searchParams.delete("admin");
   url.searchParams.delete("admin_message");
   window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+  state.adminUiOpen = true;
 
   if (adminState === "signed_in") {
     setStatus(adminMessage || `Admin mode enabled for ${state.adminAuth.user?.email || "Google account"}.`, "success");
+    renderAdminControls();
     return;
   }
 
   setStatus(adminMessage || "Unable to sign in with Google.", "error");
+  renderAdminControls();
+}
+
+function renderAdminSearchResults() {
+  if (!elements.adminSearchResults) {
+    return;
+  }
+
+  elements.adminSearchResults.innerHTML = "";
+  const results = Array.isArray(state.adminSearch.results) ? state.adminSearch.results : [];
+  if (!results.length) {
+    return;
+  }
+
+  for (const item of results) {
+    const option = document.createElement("button");
+    option.type = "button";
+    option.className = "admin-search-option";
+    option.setAttribute("data-location", item.location);
+    option.setAttribute("role", "option");
+    option.setAttribute("aria-selected", item.location === state.adminSearch.selectedValue ? "true" : "false");
+    if (item.location === state.adminSearch.selectedValue) {
+      option.classList.add("is-selected");
+    }
+
+    const title = document.createElement("strong");
+    title.className = "admin-search-option-title";
+    title.textContent = item.name || item.location;
+
+    const meta = document.createElement("span");
+    meta.className = "admin-search-option-meta";
+    meta.textContent = [item.region, item.country].filter(Boolean).join(" · ");
+
+    option.appendChild(title);
+    option.appendChild(meta);
+    elements.adminSearchResults.appendChild(option);
+  }
+}
+
+function clearAdminSearch() {
+  if (state.adminSearch.debounceId) {
+    window.clearTimeout(state.adminSearch.debounceId);
+  }
+
+  state.adminSearch = {
+    query: "",
+    results: [],
+    selectedValue: "",
+    searching: false,
+    message: "Type at least 2 characters to search.",
+    debounceId: 0,
+    requestId: state.adminSearch.requestId
+  };
+  renderAdminControls();
+}
+
+function toggleAdminUi(forceOpen) {
+  const nextOpen = typeof forceOpen === "boolean" ? forceOpen : !state.adminUiOpen;
+  state.adminUiOpen = nextOpen;
+  renderAdminControls();
+
+  if (nextOpen && state.adminAuth.authenticated) {
+    window.setTimeout(() => {
+      elements.adminLocationInput?.focus();
+    }, 0);
+  }
+}
+
+function closeAdminUi() {
+  if (!state.adminUiOpen) {
+    return;
+  }
+  state.adminUiOpen = false;
+  renderAdminControls();
+}
+
+function queueAdminLocationSearch(query) {
+  if (state.adminSearch.debounceId) {
+    window.clearTimeout(state.adminSearch.debounceId);
+  }
+
+  if (query.length < 2) {
+    state.adminSearch.searching = false;
+    state.adminSearch.results = [];
+    state.adminSearch.selectedValue = "";
+    state.adminSearch.message = query ? "Type at least 2 characters to search." : "Type at least 2 characters to search.";
+    renderAdminControls();
+    return;
+  }
+
+  state.adminSearch.searching = true;
+  state.adminSearch.message = `Searching for “${query}”...`;
+  renderAdminControls();
+
+  const requestId = state.adminSearch.requestId + 1;
+  state.adminSearch.requestId = requestId;
+  state.adminSearch.debounceId = window.setTimeout(() => {
+    void performAdminLocationSearch(query, requestId);
+  }, 260);
+}
+
+async function performAdminLocationSearch(query, requestId) {
+  const result = await apiRequest(`/api/admin/location-search?q=${encodeURIComponent(query)}`);
+  if (requestId !== state.adminSearch.requestId) {
+    return;
+  }
+
+  state.adminSearch.searching = false;
+
+  if (!result.ok) {
+    if (result.status === 401) {
+      await refreshAdminSession();
+    }
+    state.adminSearch.results = [];
+    state.adminSearch.selectedValue = "";
+    state.adminSearch.message = result.error || "Unable to search for cities right now.";
+    renderAdminControls();
+    return;
+  }
+
+  const payload = toObject(result.data);
+  const rows = Array.isArray(payload?.results) ? payload.results.map((item) => toObject(item)).filter(Boolean) : [];
+  state.adminSearch.results = rows;
+  state.adminSearch.selectedValue = "";
+  state.adminSearch.message = rows.length
+    ? `Select the correct city match for “${query}”.`
+    : `No city matches found for “${query}”.`;
+  renderAdminControls();
 }
 
 async function loadOverview() {
@@ -570,9 +765,9 @@ async function loadPredefinedLocations() {
   }
 }
 
-async function addLocation(location) {
+async function addLocation(location, displayName = location) {
   setLoading(true);
-  setStatus(`Adding ${location}...`);
+  setStatus(`Adding ${displayName}...`);
 
   const result = await apiRequest("/api/weather/watchlist", {
     method: "POST",
@@ -584,12 +779,12 @@ async function addLocation(location) {
       await refreshAdminSession();
     }
     setLoading(false);
-    setStatus(result.error || `Unable to add ${location}.`, "error");
+    setStatus(result.error || `Unable to add ${displayName}.`, "error");
     return false;
   }
 
   await loadOverview();
-  setStatus(`${location} added.`, "success");
+  setStatus(result.message || `${displayName} added.`, "success");
   return true;
 }
 
@@ -727,6 +922,7 @@ function showOverviewPage() {
 
 function showDetailPage() {
   setHeaderDetailState(true);
+  closeAdminUi();
   elements.overviewPage.classList.add("is-hidden");
   elements.detailPage.classList.remove("is-hidden");
 }
@@ -799,7 +995,7 @@ function renderLocationCards() {
       <div class="location-card-inner">
       <div class="location-head">
         <div class="location-title-wrap">
-          <h3 class="location-name">${escapeHtml(location)}</h3>
+          <h3 class="location-name">${escapeHtml(getLocationDisplayName(location))}</h3>
           <p class="location-label">${escapeHtml(country)}</p>
         </div>
         <div class="location-head-actions">
@@ -1006,7 +1202,7 @@ function renderDetail(payload) {
     high
   });
 
-  elements.selectedLocationName.textContent = location;
+  elements.selectedLocationName.textContent = getLocationDisplayName(location);
   elements.selectedUpdated.textContent = `Weather for ${formatWeatherDateLong(weatherDate)}`;
 
   if (elements.detailConditionIcon) {
@@ -2034,6 +2230,15 @@ function isKeyboardNavigationTarget(target) {
 }
 
 function handleGlobalKeydown(event) {
+  if (event.key === "Escape" && state.adminUiOpen) {
+    closeAdminUi();
+    return;
+  }
+
+  if (state.adminUiOpen) {
+    return;
+  }
+
   if (isMobileViewport() || state.isTransitioningDetail) {
     return;
   }
@@ -2062,6 +2267,14 @@ function handleGlobalKeydown(event) {
     event.preventDefault();
     shiftFocusedCard(directionStep);
   }
+}
+
+function getLocationDisplayName(location) {
+  const parts = `${location || ""}`
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return parts[0] || `${location || ""}`.trim() || "-";
 }
 
 function handleDeckTouchStart(event) {
@@ -2192,6 +2405,12 @@ function shiftFocusedCard(directionStep) {
 
 function setLoading(isLoading) {
   elements.homeBtn.disabled = isLoading;
+  if (elements.adminToggleBtn) {
+    elements.adminToggleBtn.disabled = isLoading;
+  }
+  if (elements.adminCloseBtn) {
+    elements.adminCloseBtn.disabled = isLoading;
+  }
   if (elements.detailBackBtn) {
     elements.detailBackBtn.disabled = isLoading;
   }
@@ -2203,6 +2422,9 @@ function setLoading(isLoading) {
   }
   if (elements.adminLocationInput) {
     elements.adminLocationInput.disabled = isLoading || !state.adminAuth.authenticated;
+  }
+  if (elements.adminSearchResults) {
+    elements.adminSearchResults.classList.toggle("is-disabled", isLoading);
   }
 }
 
@@ -2382,6 +2604,18 @@ async function staticApiRequest(url, options = {}) {
       ok: true,
       status: 200,
       data: staticAdminPayload
+    };
+  }
+
+  if (apiPath === "/api/admin/location-search" && method === "GET") {
+    return {
+      ok: false,
+      status: 501,
+      error: STATIC_ADMIN_UNAVAILABLE,
+      data: {
+        query: "",
+        results: []
+      }
     };
   }
 

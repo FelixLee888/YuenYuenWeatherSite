@@ -23,6 +23,7 @@ const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 const GOOGLE_SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
 const GOOGLE_METADATA_TOKEN_URL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token";
+const OPEN_METEO_GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search";
 const GOOGLE_CLIENT_ID = (process.env.GOOGLE_CLIENT_ID || "").trim();
 const GOOGLE_CLIENT_SECRET = (process.env.GOOGLE_CLIENT_SECRET || process.env.GOOGLE_OAUTH_CLIENT_SECRET || "").trim();
 const ADMIN_ALLOWED_EMAILS = parseEmailList(process.env.ADMIN_ALLOWED_EMAILS || "jancefelix@gmail.com");
@@ -527,6 +528,41 @@ async function handleApi(req, res, requestUrl) {
       source: bundle.source,
       data: buildWatchlistPayload(bundle)
     });
+    return;
+  }
+
+  if (pathname === "/api/admin/location-search" && req.method === "GET") {
+    if (!requireAdminSession(req, res)) {
+      return;
+    }
+
+    const query = `${requestUrl.searchParams.get("q") || requestUrl.searchParams.get("query") || ""}`.trim();
+    if (query.length < 2) {
+      sendJson(res, 200, {
+        ok: true,
+        data: {
+          query,
+          results: []
+        }
+      });
+      return;
+    }
+
+    try {
+      const results = await searchLocationCandidates(query);
+      sendJson(res, 200, {
+        ok: true,
+        data: {
+          query,
+          results
+        }
+      });
+    } catch (error) {
+      sendJson(res, 502, {
+        ok: false,
+        error: error?.message || "Unable to search for locations right now."
+      });
+    }
     return;
   }
 
@@ -1251,6 +1287,90 @@ async function exchangeGoogleAuthorizationCode(req, code) {
   }
 
   return payload;
+}
+
+async function searchLocationCandidates(query) {
+  const url = new URL(OPEN_METEO_GEOCODING_URL);
+  url.searchParams.set("name", query);
+  url.searchParams.set("count", "8");
+  url.searchParams.set("language", "en");
+  url.searchParams.set("format", "json");
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Accept: "application/json"
+    }
+  });
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(toErrorMessage(payload, "Location search failed."));
+  }
+
+  const rows = Array.isArray(payload?.results) ? payload.results : [];
+  const deduped = new Map();
+
+  for (const row of rows) {
+    const candidate = buildLocationSearchCandidate(row);
+    if (!candidate) {
+      continue;
+    }
+    if (!deduped.has(candidate.value_key)) {
+      deduped.set(candidate.value_key, candidate);
+    }
+  }
+
+  return Array.from(deduped.values());
+}
+
+function buildLocationSearchCandidate(row) {
+  const name = `${row?.name || ""}`.trim();
+  const country = `${row?.country || ""}`.trim();
+  if (!name || !country) {
+    return null;
+  }
+
+  const admin1 = `${row?.admin1 || ""}`.trim();
+  const admin2 = `${row?.admin2 || ""}`.trim();
+  const latitude = Number(row?.latitude);
+  const longitude = Number(row?.longitude);
+
+  const location = buildWatchlistLocationLabel({ name, country, admin1, admin2 });
+  const regionParts = [admin1, admin2]
+    .filter(Boolean)
+    .filter((value, index, list) => list.indexOf(value) === index)
+    .filter((value) => normalizeLocation(value) !== normalizeLocation(name) && normalizeLocation(value) !== normalizeLocation(country));
+
+  return {
+    id: `${row?.id || location}`,
+    name,
+    country,
+    region: regionParts.join(", ") || null,
+    label: [name, regionParts.join(", "), country].filter(Boolean).join(" · "),
+    location,
+    value_key: normalizeLocation(location),
+    latitude: Number.isFinite(latitude) ? latitude : null,
+    longitude: Number.isFinite(longitude) ? longitude : null,
+    timezone: `${row?.timezone || ""}`.trim() || null
+  };
+}
+
+function buildWatchlistLocationLabel({ name, country, admin1, admin2 }) {
+  const parts = [`${name || ""}`.trim()];
+  for (const region of [admin1]) {
+    const normalizedRegion = normalizeLocation(region);
+    if (
+      normalizedRegion &&
+      normalizedRegion !== normalizeLocation(name) &&
+      normalizedRegion !== normalizeLocation(country) &&
+      !parts.some((part) => normalizeLocation(part) === normalizedRegion)
+    ) {
+      parts.push(region.trim());
+    }
+  }
+  parts.push(`${country || ""}`.trim());
+  return parts.filter(Boolean).join(", ");
 }
 
 async function getGoogleMetadataAccessToken() {
