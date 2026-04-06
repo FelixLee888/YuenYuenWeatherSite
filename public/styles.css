@@ -1355,6 +1355,14 @@ body.is-detail-view .admin-menu {
   justify-content: flex-end;
 }
 
+.history-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .history-head-side .muted {
   margin: 0;
 }
@@ -1897,6 +1905,11 @@ body.is-detail-view .admin-menu {
     width: 100%;
     justify-content: flex-start;
     gap: 0.34rem;
+  }
+
+  .history-controls {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .history-toggle-btn {

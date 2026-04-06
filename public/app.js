@@ -59,6 +59,12 @@ const HISTORY_METRIC_CONFIG = {
   wind: { label: "Wind", unit: "km/h" }
 };
 
+const HISTORY_RANGE_CONFIG = {
+  "7d": { label: "7 days", limit: 7 },
+  "30d": { label: "30 days", limit: 30 },
+  all: { label: "All days", limit: null }
+};
+
 const DETAIL_WEATHER_ICON_SET2 = {
   thunder: "./asset/weather-icons-set2/svg/weather_icon_set2_08.svg",
   storm: "./asset/weather-icons-set2/svg/weather_icon_set2_07.svg",
@@ -104,6 +110,7 @@ const state = {
   focusedLocation: "",
   selectedLocation: "",
   historyMetric: "temperature",
+  historyRange: "7d",
   historyTrendModel: null,
   isMobileLayout: false,
   isTransitioningDetail: false,
@@ -193,6 +200,9 @@ const elements = {
   sportGrid: document.getElementById("sportGrid"),
   historyMetricTempBtn: document.getElementById("historyMetricTempBtn"),
   historyMetricWindBtn: document.getElementById("historyMetricWindBtn"),
+  historyRange7Btn: document.getElementById("historyRange7Btn"),
+  historyRange30Btn: document.getElementById("historyRange30Btn"),
+  historyRangeAllBtn: document.getElementById("historyRangeAllBtn"),
   historyMeta: document.getElementById("historyMeta"),
   historyChart: document.getElementById("historyChart"),
   historyLegend: document.getElementById("historyLegend")
@@ -407,6 +417,18 @@ function bindEvents() {
 
   elements.historyMetricWindBtn?.addEventListener("click", () => {
     setHistoryMetric("wind");
+  });
+
+  elements.historyRange7Btn?.addEventListener("click", () => {
+    setHistoryRange("7d");
+  });
+
+  elements.historyRange30Btn?.addEventListener("click", () => {
+    setHistoryRange("30d");
+  });
+
+  elements.historyRangeAllBtn?.addEventListener("click", () => {
+    setHistoryRange("all");
   });
 
   window.addEventListener("resize", () => {
@@ -1385,11 +1407,13 @@ function renderDetail(payload) {
   renderMwisLinks(location, daily?.mwis_links);
 
   state.historyTrendModel = buildHistoryTrendModel(history);
+  state.historyRange = "7d";
   if (!historyModelHasMetricData(state.historyTrendModel, state.historyMetric)) {
     state.historyMetric = historyModelHasMetricData(state.historyTrendModel, "temperature") ? "temperature" : "wind";
   }
   syncHistoryMetricButtons();
-  renderHistoryChart(state.historyTrendModel, state.historyMetric);
+  syncHistoryRangeButtons();
+  renderHistoryChart(state.historyTrendModel, state.historyMetric, state.historyRange);
 }
 
 function renderSportRecommendations(suitability) {
@@ -1941,7 +1965,20 @@ function setHistoryMetric(metric) {
   syncHistoryMetricButtons();
 
   if (state.historyTrendModel) {
-    renderHistoryChart(state.historyTrendModel, state.historyMetric);
+    renderHistoryChart(state.historyTrendModel, state.historyMetric, state.historyRange);
+  }
+}
+
+function setHistoryRange(range) {
+  if (!Object.prototype.hasOwnProperty.call(HISTORY_RANGE_CONFIG, range)) {
+    return;
+  }
+
+  state.historyRange = range;
+  syncHistoryRangeButtons();
+
+  if (state.historyTrendModel) {
+    renderHistoryChart(state.historyTrendModel, state.historyMetric, state.historyRange);
   }
 }
 
@@ -1961,6 +1998,25 @@ function syncHistoryMetricButtons() {
     elements.historyMetricWindBtn.classList.toggle("is-active", isActive);
     elements.historyMetricWindBtn.setAttribute("aria-pressed", isActive ? "true" : "false");
     elements.historyMetricWindBtn.disabled = !hasWind;
+  }
+}
+
+function syncHistoryRangeButtons() {
+  const buttonMap = [
+    { key: "7d", element: elements.historyRange7Btn },
+    { key: "30d", element: elements.historyRange30Btn },
+    { key: "all", element: elements.historyRangeAllBtn }
+  ];
+
+  for (const entry of buttonMap) {
+    if (!entry.element) {
+      continue;
+    }
+
+    const isActive = state.historyRange === entry.key;
+    entry.element.classList.toggle("is-active", isActive);
+    entry.element.setAttribute("aria-pressed", isActive ? "true" : "false");
+    entry.element.disabled = !state.historyTrendModel || !Array.isArray(state.historyTrendModel.dates) || !state.historyTrendModel.dates.length;
   }
 }
 
@@ -2054,7 +2110,7 @@ function buildHistoryTrendModel(payload) {
   };
 }
 
-function renderHistoryChart(model, metric = "temperature") {
+function renderHistoryChart(model, metric = "temperature", range = "7d") {
   if (!elements.historyChart || !elements.historyLegend || !elements.historyMeta) {
     return;
   }
@@ -2062,7 +2118,15 @@ function renderHistoryChart(model, metric = "temperature") {
   elements.historyChart.innerHTML = "";
   elements.historyLegend.innerHTML = "";
 
-  if (!model || !Array.isArray(model.series) || !model.series.length || !Array.isArray(model.dates) || !model.dates.length) {
+  const filteredModel = filterHistoryTrendModel(model, range);
+
+  if (
+    !filteredModel ||
+    !Array.isArray(filteredModel.series) ||
+    !filteredModel.series.length ||
+    !Array.isArray(filteredModel.dates) ||
+    !filteredModel.dates.length
+  ) {
     elements.historyMeta.textContent = "No trend data";
     renderHistoryChartEmpty("No source trend data available.");
     return;
@@ -2073,7 +2137,7 @@ function renderHistoryChart(model, metric = "temperature") {
   const readPointValue = (point) => toNumber(metricKey === "wind" ? point?.wind : point?.temperature);
 
   const numericValues = [];
-  for (const series of model.series) {
+  for (const series of filteredModel.series) {
     for (const point of series.points) {
       const value = readPointValue(point);
       if (Number.isFinite(value)) {
@@ -2083,7 +2147,7 @@ function renderHistoryChart(model, metric = "temperature") {
   }
 
   if (!numericValues.length) {
-    elements.historyMeta.textContent = `${model.series.length} sources`;
+    elements.historyMeta.textContent = `${filteredModel.series.length} sources • ${describeHistoryRange(filteredModel, range)}`;
     renderHistoryChartEmpty(`No ${metricInfo.label.toLowerCase()} values in source trend data.`);
     return;
   }
@@ -2101,10 +2165,10 @@ function renderHistoryChart(model, metric = "temperature") {
   const marginBottom = 34;
   const marginLeft = 52;
   const plotHeight = 166;
-  const stepX = Math.max(56, Math.min(90, 760 / Math.max(1, model.dates.length - 1)));
-  const chartWidth = Math.max(520, marginLeft + marginRight + stepX * Math.max(1, model.dates.length - 1));
+  const stepX = Math.max(56, Math.min(90, 760 / Math.max(1, filteredModel.dates.length - 1)));
+  const chartWidth = Math.max(520, marginLeft + marginRight + stepX * Math.max(1, filteredModel.dates.length - 1));
   const chartHeight = marginTop + plotHeight + marginBottom;
-  const range = max - min || 1;
+  const valueRange = max - min || 1;
 
   const svg = createSvgNode("svg", {
     class: "history-line-svg",
@@ -2118,7 +2182,7 @@ function renderHistoryChart(model, metric = "temperature") {
   for (let tick = 0; tick <= 4; tick += 1) {
     const ratio = tick / 4;
     const y = marginTop + ratio * plotHeight;
-    const value = max - ratio * range;
+    const value = max - ratio * valueRange;
 
     svg.appendChild(createSvgNode("line", {
       class: "history-grid-line",
@@ -2138,9 +2202,9 @@ function renderHistoryChart(model, metric = "temperature") {
     svg.appendChild(label);
   }
 
-  const labelStride = Math.max(1, Math.ceil(model.dates.length / 6));
-  for (let index = 0; index < model.dates.length; index += 1) {
-    const isLast = index === model.dates.length - 1;
+  const labelStride = Math.max(1, Math.ceil(filteredModel.dates.length / 6));
+  for (let index = 0; index < filteredModel.dates.length; index += 1) {
+    const isLast = index === filteredModel.dates.length - 1;
     if (!isLast && index % labelStride !== 0) {
       continue;
     }
@@ -2152,11 +2216,11 @@ function renderHistoryChart(model, metric = "temperature") {
       y: chartHeight - 8,
       "text-anchor": "middle"
     });
-    label.textContent = shortDateLabel(model.dates[index]);
+    label.textContent = shortDateLabel(filteredModel.dates[index]);
     svg.appendChild(label);
   }
 
-  for (const series of model.series) {
+  for (const series of filteredModel.series) {
     let pathData = "";
     let hasSegment = false;
 
@@ -2169,7 +2233,7 @@ function renderHistoryChart(model, metric = "temperature") {
       }
 
       const x = marginLeft + index * stepX;
-      const y = marginTop + ((max - value) / range) * plotHeight;
+      const y = marginTop + ((max - value) / valueRange) * plotHeight;
       pathData += hasSegment ? ` L ${x} ${y}` : ` M ${x} ${y}`;
       hasSegment = true;
     }
@@ -2190,7 +2254,7 @@ function renderHistoryChart(model, metric = "temperature") {
       }
 
       const x = marginLeft + index * stepX;
-      const y = marginTop + ((max - value) / range) * plotHeight;
+      const y = marginTop + ((max - value) / valueRange) * plotHeight;
       svg.appendChild(createSvgNode("circle", {
         class: "history-point",
         cx: x,
@@ -2202,8 +2266,46 @@ function renderHistoryChart(model, metric = "temperature") {
   }
 
   elements.historyChart.appendChild(svg);
-  renderHistoryLegend(model.series);
-  elements.historyMeta.textContent = `${model.series.length} sources • ${model.dates.length} days • ${metricInfo.label}`;
+  renderHistoryLegend(filteredModel.series);
+  elements.historyMeta.textContent = `${filteredModel.series.length} sources • ${describeHistoryRange(filteredModel, range)} • ${metricInfo.label}`;
+}
+
+function filterHistoryTrendModel(model, rangeKey) {
+  if (!model || !Array.isArray(model.dates) || !Array.isArray(model.series)) {
+    return model;
+  }
+
+  const config = HISTORY_RANGE_CONFIG[rangeKey] || HISTORY_RANGE_CONFIG["7d"];
+  const totalDates = model.dates.length;
+  const limit = config.limit;
+  const startIndex = limit === null ? 0 : Math.max(0, totalDates - limit);
+  const dates = model.dates.slice(startIndex);
+  const series = model.series.map((entry) => ({
+    ...entry,
+    points: Array.isArray(entry.points) ? entry.points.slice(startIndex) : []
+  }));
+
+  return {
+    ...model,
+    dates,
+    series,
+    visibleDateCount: dates.length,
+    totalDateCount: totalDates,
+    rangeKey
+  };
+}
+
+function describeHistoryRange(model, rangeKey) {
+  const visibleCount = Array.isArray(model?.dates) ? model.dates.length : 0;
+  if (!visibleCount) {
+    return "0 days";
+  }
+
+  if (rangeKey === "all") {
+    return `all ${visibleCount} day${visibleCount === 1 ? "" : "s"}`;
+  }
+
+  return `latest ${visibleCount} day${visibleCount === 1 ? "" : "s"}`;
 }
 
 function renderHistoryLegend(seriesList) {

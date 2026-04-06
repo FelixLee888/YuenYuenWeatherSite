@@ -190,9 +190,16 @@
               <div class="panel-head history-head">
                 <h3>Historical Trend</h3>
                 <div class="history-head-side">
-                  <div class="history-toggle" role="group" aria-label="Trend metric">
-                    <button id="historyMetricTempBtn" type="button" class="history-toggle-btn is-active" aria-pressed="true">Temp</button>
-                    <button id="historyMetricWindBtn" type="button" class="history-toggle-btn" aria-pressed="false">Wind</button>
+                  <div class="history-controls">
+                    <div class="history-toggle" role="group" aria-label="Trend metric">
+                      <button id="historyMetricTempBtn" type="button" class="history-toggle-btn is-active" aria-pressed="true">Temp</button>
+                      <button id="historyMetricWindBtn" type="button" class="history-toggle-btn" aria-pressed="false">Wind</button>
+                    </div>
+                    <div class="history-toggle" role="group" aria-label="Trend range">
+                      <button id="historyRange7Btn" type="button" class="history-toggle-btn is-active" aria-pressed="true">7 days</button>
+                      <button id="historyRange30Btn" type="button" class="history-toggle-btn" aria-pressed="false">30 days</button>
+                      <button id="historyRangeAllBtn" type="button" class="history-toggle-btn" aria-pressed="false">All</button>
+                    </div>
                   </div>
                   <p id="historyMeta" class="muted">-</p>
                 </div>
