@@ -240,9 +240,43 @@ async function validateFreshWeatherSnapshots(repoRoot, resolvedLocations) {
 }
 
 async function geocodeLocation(name) {
+  for (const query of buildGeocodeQueries(name)) {
+    const entry = await geocodeLocationQuery(name, query);
+    if (entry) {
+      return entry;
+    }
+  }
+
+  return null;
+}
+
+function buildGeocodeQueries(name) {
+  const raw = `${name || ""}`.trim();
+  const parts = raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const queries = [raw];
+
+  if (parts.length > 1) {
+    queries.push(parts[0]);
+  }
+
+  const seen = new Set();
+  return queries.filter((query) => {
+    const key = normalizeLocationKey(query);
+    if (!key || seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+async function geocodeLocationQuery(originalName, query) {
   const url = new URL(GEOCODE_URL);
-  url.searchParams.set("name", name);
-  url.searchParams.set("count", "1");
+  url.searchParams.set("name", query);
+  url.searchParams.set("count", "5");
   url.searchParams.set("language", "en");
   url.searchParams.set("format", "json");
 
@@ -255,7 +289,7 @@ async function geocodeLocation(name) {
   }
 
   const body = await response.json();
-  const first = Array.isArray(body?.results) ? body.results[0] : null;
+  const first = chooseGeocodeResult(originalName, body?.results);
   if (!first) {
     return null;
   }
@@ -267,10 +301,42 @@ async function geocodeLocation(name) {
   }
 
   return {
-    name,
+    name: originalName,
     lat,
     lon
   };
+}
+
+function chooseGeocodeResult(originalName, results) {
+  const rows = Array.isArray(results) ? results : [];
+  if (!rows.length) {
+    return null;
+  }
+
+  const requestedParts = `${originalName || ""}`
+    .split(",")
+    .map((part) => normalizeLocationKey(part))
+    .filter(Boolean);
+
+  if (requestedParts.length <= 1) {
+    return rows[0];
+  }
+
+  return rows.find((row) => {
+    const haystack = [
+      row?.name,
+      row?.country,
+      row?.country_code,
+      row?.admin1,
+      row?.admin2,
+      row?.admin3,
+      row?.timezone
+    ]
+      .map((value) => normalizeLocationKey(value))
+      .filter(Boolean);
+
+    return requestedParts.slice(1).some((part) => haystack.includes(part));
+  }) || rows[0];
 }
 
 async function resolveWatchlistLocations(names) {
