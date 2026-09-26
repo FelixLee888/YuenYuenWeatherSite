@@ -1,0 +1,1480 @@
+{
+  "generated_at_utc": "2026-09-26T12:06:44+00:00",
+  "mode": "full",
+  "run_date": "2026-09-26",
+  "forecast_date": "2026-09-27",
+  "eval_date": "2026-09-25",
+  "lookback_days": 14,
+  "sources": {
+    "configured": [
+      "open_meteo",
+      "met_no",
+      "met_office",
+      "openweather",
+      "google_weather"
+    ],
+    "available": [
+      "open_meteo",
+      "met_office",
+      "openweather",
+      "google_weather"
+    ],
+    "used_for_report": [
+      "open_meteo",
+      "met_office",
+      "openweather",
+      "google_weather"
+    ],
+    "missing_api_keys": [],
+    "skipped_errors": []
+  },
+  "zones": [
+    {
+      "name": "Ben Nevis",
+      "lat": 56.7969,
+      "lon": -5.0036,
+      "ensemble": {
+        "temp_min": 3.26,
+        "temp_max": 6.28,
+        "wind_max": 42.54,
+        "rainfall_chance": 95.6,
+        "wind_direction": "194",
+        "spread_temp": 5.5,
+        "spread_wind": 54.15
+      },
+      "briefing": "- Ben Nevis - 3.3 -> 6.3 C. strong wind from SSW (194°), peaking near 42.5 km/h (26.4 mph); higher model spread on temperature, higher model spread on wind. best window is late morning to early afternoon on sheltered routes. Rain chance around 96%.",
+      "suitability": {
+        "cycling": "Poor",
+        "hiking": "Fair",
+        "skiing": "Poor"
+      },
+      "source_forecasts": {
+        "google_weather": {
+          "source_label": "Google Weather",
+          "temp_min": 5.6,
+          "temp_max": 9.5,
+          "wind_max": 40,
+          "rainfall_chance": 75,
+          "next_7_days": [
+            {
+              "date": "2026-09-26",
+              "temp_min": 8,
+              "temp_max": 10.4,
+              "wind_max": 47,
+              "rainfall_chance": 35
+            },
+            {
+              "date": "2026-09-27",
+              "temp_min": 5.6,
+              "temp_max": 9.5,
+              "wind_max": 40,
+              "rainfall_chance": 75
+            },
+            {
+              "date": "2026-09-28",
+              "temp_min": 5.5,
+              "temp_max": 10.2,
+              "wind_max": 39,
+              "rainfall_chance": 20
+            },
+            {
+              "date": "2026-09-29",
+              "temp_min": 6.7,
+              "temp_max": 14.2,
+              "wind_max": 66,
+              "rainfall_chance": 75
+            },
+            {
+              "date": "2026-09-30",
+              "temp_min": 7.9,
+              "temp_max": 13.4,
+              "wind_max": 58,
+              "rainfall_chance": 70
+            },
+            {
+              "date": "2026-10-01",
+              "temp_min": 7.6,
+              "temp_max": 10.5,
+              "wind_max": 39,
+              "rainfall_chance": 55
+            },
+            {
+              "date": "2026-10-02",
+              "temp_min": 6,
+              "temp_max": 9.1,
+              "wind_max": 32,
+              "rainfall_chance": 45
+            }
+          ]
+        },
+        "met_office": {
+          "source_label": "UK Met Office",
+          "temp_min": 3,
+          "temp_max": 4,
+          "wind_max": 69.2,
+          "next_7_days": [
+            {
+              "date": "2026-09-26",
+              "temp_min": 3,
+              "temp_max": 4,
+              "wind_max": 65.98
+            },
+            {
+              "date": "2026-09-27",
+              "temp_min": 3,
+              "temp_max": 4,
+              "wind_max": 69.2
+            },
+            {
+              "date": "2026-09-28",
+              "temp_min": 3,
+              "temp_max": 4,
+              "wind_max": 41.84
+            },
+            {
+              "date": "2026-09-29",
+              "temp_min": 3,
+              "temp_max": 7,
+              "wind_max": 69.2
+            },
+            {
+              "date": "2026-09-30",
+              "temp_min": 4,
+              "temp_max": 7,
+              "wind_max": 65.98
+            },
+            {
+              "date": "2026-10-01",
+              "temp_min": 3,
+              "temp_max": 4,
+              "wind_max": 54.72
+            },
+            {
+              "date": "2026-10-02",
+              "temp_min": 3,
+              "temp_max": 4,
+              "wind_max": 33.8
+            }
+          ]
+        },
+        "open_meteo": {
+          "source_label": "Open-Meteo",
+          "temp_min": 1.7,
+          "temp_max": 5.3,
+          "wind_max": 49.3,
+          "rainfall_chance": 100,
+          "wind_direction": "199",
+          "next_7_days": [
+            {
+              "date": "2026-09-26",
+              "temp_min": 2.8,
+              "temp_max": 5.4,
+              "wind_max": 41.8,
+              "rainfall_chance": 100,
+              "wind_direction": "210"
+            },
+            {
+              "date": "2026-09-27",
+              "temp_min": 1.7,
+              "temp_max": 5.3,
+              "wind_max": 49.3,
+              "rainfall_chance": 100,
+              "wind_direction": "199"
+            },
+            {
+              "date": "2026-09-28",
+              "temp_min": 0,
+              "temp_max": 5.5,
+              "wind_max": 28.4,
+              "rainfall_chance": 97,
+              "wind_direction": "205"
+            },
+            {
+              "date": "2026-09-29",
+              "temp_min": -2.2,
+              "temp_max": 7.8,
+              "wind_max": 27,
+              "rainfall_chance": 47,
+              "wind_direction": "131"
+            },
+            {
+              "date": "2026-09-30",
+              "temp_min": 5.4,
+              "temp_max": 9.9,
+              "wind_max": 27,
+              "rainfall_chance": 96,
+              "wind_direction": "163"
+            },
+            {
+              "date": "2026-10-01",
+              "temp_min": 2.8,
+              "temp_max": 5.9,
+              "wind_max": 23.4,
+              "rainfall_chance": 100,
+              "wind_direction": "186"
+            },
+            {
+              "date": "2026-10-02",
+              "temp_min": 1.9,
+              "temp_max": 5,
+              "wind_max": 22.7,
+              "rainfall_chance": 84,
+              "wind_direction": "212"
+            }
+          ]
+        },
+        "openweather": {
+          "source_label": "OpenWeather",
+          "temp_min": 4.1,
+          "temp_max": 7.72,
+          "wind_max": 15.05,
+          "rainfall_chance": 100,
+          "wind_direction": "188",
+          "next_7_days": [
+            {
+              "date": "2026-09-26",
+              "temp_min": 6.19,
+              "temp_max": 7.88,
+              "wind_max": 16.38,
+              "rainfall_chance": 95,
+              "wind_direction": "190"
+            },
+            {
+              "date": "2026-09-27",
+              "temp_min": 4.1,
+              "temp_max": 7.72,
+              "wind_max": 15.05,
+              "rainfall_chance": 100,
+              "wind_direction": "188"
+            },
+            {
+              "date": "2026-09-28",
+              "temp_min": 3.07,
+              "temp_max": 9.18,
+              "wind_max": 17.17,
+              "rainfall_chance": 100,
+              "wind_direction": "184"
+            },
+            {
+              "date": "2026-09-29",
+              "temp_min": 1.79,
+              "temp_max": 11.46,
+              "wind_max": 21.89,
+              "rainfall_chance": 2,
+              "wind_direction": "113"
+            },
+            {
+              "date": "2026-09-30",
+              "temp_min": 6.69,
+              "temp_max": 13.74,
+              "wind_max": 21.96,
+              "rainfall_chance": 100,
+              "wind_direction": "156"
+            },
+            {
+              "date": "2026-10-01",
+              "temp_min": 5.25,
+              "temp_max": 9.08,
+              "wind_max": 17.39,
+              "rainfall_chance": 100,
+              "wind_direction": "184"
+            }
+          ]
+        },
+        "met_no": {
+          "source_label": "MET Norway",
+          "temp_min": null,
+          "temp_max": null,
+          "wind_max": null
+        }
+      }
+    },
+    {
+      "name": "Cairngorms",
+      "lat": 57.1167,
+      "lon": -3.6667,
+      "ensemble": {
+        "temp_min": 5.66,
+        "temp_max": 9.05,
+        "wind_max": 44.45,
+        "rainfall_chance": 90.3,
+        "wind_direction": "192",
+        "spread_temp": 1.8,
+        "spread_wind": 43.26
+      },
+      "briefing": "- Cairngorms - 5.7 -> 9.1 C. strong wind from SSW (192°), peaking near 44.5 km/h (27.6 mph); higher model spread on wind. best window is late morning to early afternoon on sheltered routes. Rain chance around 90%.",
+      "suitability": {
+        "cycling": "Poor",
+        "hiking": "Fair",
+        "skiing": "Poor"
+      },
+      "source_forecasts": {
+        "google_weather": {
+          "source_label": "Google Weather",
+          "temp_min": 4.4,
+          "temp_max": 8.8,
+          "wind_max": 69,
+          "rainfall_chance": 45,
+          "next_7_days": [
+            {
+              "date": "2026-09-26",
+              "temp_min": 7.3,
+              "temp_max": 10.2,
+              "wind_max": 64,
+              "rainfall_chance": 15
+            },
+            {
+              "date": "2026-09-27",
+              "temp_min": 4.4,
+              "temp_max": 8.8,
+              "wind_max": 69,
+              "rainfall_chance": 45
+            },
+            {
+              "date": "2026-09-28",
+              "temp_min": 4.3,
+              "temp_max": 9.8,
+              "wind_max": 61,
+              "rainfall_chance": 10
+            },
+            {
+              "date": "2026-09-29",
+              "temp_min": 6.3,
+              "temp_max": 13.3,
+              "wind_max": 79,
+              "rainfall_chance": 70
+            },
+            {
+              "date": "2026-09-30",
+              "temp_min": 7.5,
+              "temp_max": 12.8,
+              "wind_max": 77,
+              "rainfall_chance": 65
+            },
+            {
+              "date": "2026-10-01",
+              "temp_min": 7.1,
+              "temp_max": 10.5,
+              "wind_max": 48,
+              "rainfall_chance": 15
+            },
+            {
+              "date": "2026-10-02",
+              "temp_min": 4.9,
+              "temp_max": 9.7,
+              "wind_max": 39,
+              "rainfall_chance": 15
+            }
+          ]
+        },
+        "met_office": {
+          "source_label": "UK Met Office",
+          "temp_min": 6,
+          "temp_max": 10,
+          "wind_max": 40.23,
+          "next_7_days": [
+            {
+              "date": "2026-09-26",
+              "temp_min": 10,
+              "temp_max": 11,
+              "wind_max": 40.23
+            },
+            {
+              "date": "2026-09-27",
+              "temp_min": 6,
+              "temp_max": 10,
+              "wind_max": 40.23
+            },
+            {
+              "date": "2026-09-28",
+              "temp_min": 5,
+              "temp_max": 10,
+              "wind_max": 28.97
+            },
+            {
+              "date": "2026-09-29",
+              "temp_min": 5,
+              "temp_max": 12,
+              "wind_max": 37.01
+            },
+            {
+              "date": "2026-09-30",
+              "temp_min": 10,
+              "temp_max": 13,
+              "wind_max": 38.62
+            },
+            {
+              "date": "2026-10-01",
+              "temp_min": 8,
+              "temp_max": 11,
+              "wind_max": 33.8
+            },
+            {
+              "date": "2026-10-02",
+              "temp_min": 5,
+              "temp_max": 10,
+              "wind_max": 24.14
+            }
+          ]
+        },
+        "open_meteo": {
+          "source_label": "Open-Meteo",
+          "temp_min": 4.3,
+          "temp_max": 8.2,
+          "wind_max": 54.7,
+          "rainfall_chance": 100,
+          "wind_direction": "193",
+          "next_7_days": [
+            {
+              "date": "2026-09-26",
+              "temp_min": 5.1,
+              "temp_max": 8.3,
+              "wind_max": 43.2,
+              "rainfall_chance": 81,
+              "wind_direction": "213"
+            },
+            {
+              "date": "2026-09-27",
+              "temp_min": 4.3,
+              "temp_max": 8.2,
+              "wind_max": 54.7,
+              "rainfall_chance": 100,
+              "wind_direction": "193"
+            },
+            {
+              "date": "2026-09-28",
+              "temp_min": 3.6,
+              "temp_max": 8.6,
+              "wind_max": 28.1,
+              "rainfall_chance": 22,
+              "wind_direction": "216"
+            },
+            {
+              "date": "2026-09-29",
+              "temp_min": 2,
+              "temp_max": 10.1,
+              "wind_max": 48.2,
+              "rainfall_chance": 76,
+              "wind_direction": "147"
+            },
+            {
+              "date": "2026-09-30",
+              "temp_min": 8.3,
+              "temp_max": 12.7,
+              "wind_max": 44.3,
+              "rainfall_chance": 100,
+              "wind_direction": "168"
+            },
+            {
+              "date": "2026-10-01",
+              "temp_min": 5.7,
+              "temp_max": 9.1,
+              "wind_max": 38.9,
+              "rainfall_chance": 46,
+              "wind_direction": "192"
+            },
+            {
+              "date": "2026-10-02",
+              "temp_min": 4.8,
+              "temp_max": 6.8,
+              "wind_max": 34.2,
+              "rainfall_chance": 59,
+              "wind_direction": "221"
+            }
+          ]
+        },
+        "openweather": {
+          "source_label": "OpenWeather",
+          "temp_min": 7.43,
+          "temp_max": 9.33,
+          "wind_max": 25.74,
+          "rainfall_chance": 100,
+          "wind_direction": "190",
+          "next_7_days": [
+            {
+              "date": "2026-09-26",
+              "temp_min": 9.2,
+              "temp_max": 11.31,
+              "wind_max": 23.22,
+              "rainfall_chance": 0,
+              "wind_direction": "195"
+            },
+            {
+              "date": "2026-09-27",
+              "temp_min": 7.43,
+              "temp_max": 9.33,
+              "wind_max": 25.74,
+              "rainfall_chance": 100,
+              "wind_direction": "190"
+            },
+            {
+              "date": "2026-09-28",
+              "temp_min": 6.07,
+              "temp_max": 12.02,
+              "wind_max": 19.69,
+              "rainfall_chance": 0,
+              "wind_direction": "199"
+            },
+            {
+              "date": "2026-09-29",
+              "temp_min": 4.46,
+              "temp_max": 12.92,
+              "wind_max": 24.7,
+              "rainfall_chance": 0,
+              "wind_direction": "145"
+            },
+            {
+              "date": "2026-09-30",
+              "temp_min": 10.37,
+              "temp_max": 15.22,
+              "wind_max": 23.36,
+              "rainfall_chance": 100,
+              "wind_direction": "168"
+            },
+            {
+              "date": "2026-10-01",
+              "temp_min": 8.38,
+              "temp_max": 12.15,
+              "wind_max": 22.9,
+              "rainfall_chance": 0,
+              "wind_direction": "195"
+            }
+          ]
+        },
+        "met_no": {
+          "source_label": "MET Norway",
+          "temp_min": null,
+          "temp_max": null,
+          "wind_max": null
+        }
+      }
+    },
+    {
+      "name": "Glencoe",
+      "lat": 56.6833,
+      "lon": -5.1,
+      "ensemble": {
+        "temp_min": 9.95,
+        "temp_max": 14.05,
+        "wind_max": 22.26,
+        "rainfall_chance": 95.6,
+        "wind_direction": "189",
+        "spread_temp": 3.7,
+        "spread_wind": 17.6
+      },
+      "briefing": "- Glencoe - 10.0 -> 14.1 C. moderate wind from S (189°), peaking near 22.3 km/h (13.8 mph); higher model spread on wind. best window is mid-morning through mid-afternoon. Rain chance around 96%.",
+      "suitability": {
+        "cycling": "Good",
+        "hiking": "Good",
+        "skiing": "Poor"
+      },
+      "source_forecasts": {
+        "google_weather": {
+          "source_label": "Google Weather",
+          "temp_min": 7.3,
+          "temp_max": 11.3,
+          "wind_max": 37,
+          "rainfall_chance": 75,
+          "next_7_days": [
+            {
+              "date": "2026-09-26",
+              "temp_min": 9.5,
+              "temp_max": 12,
+              "wind_max": 39,
+              "rainfall_chance": 35
+            },
+            {
+              "date": "2026-09-27",
+              "temp_min": 7.3,
+              "temp_max": 11.3,
+              "wind_max": 37,
+              "rainfall_chance": 75
+            },
+            {
+              "date": "2026-09-28",
+              "temp_min": 7,
+              "temp_max": 12.3,
+              "wind_max": 32,
+              "rainfall_chance": 25
+            },
+            {
+              "date": "2026-09-29",
+              "temp_min": 8.2,
+              "temp_max": 15.7,
+              "wind_max": 60,
+              "rainfall_chance": 75
+            },
+            {
+              "date": "2026-09-30",
+              "temp_min": 9.4,
+              "temp_max": 15.1,
+              "wind_max": 55,
+              "rainfall_chance": 65
+            },
+            {
+              "date": "2026-10-01",
+              "temp_min": 8.9,
+              "temp_max": 12.5,
+              "wind_max": 39,
+              "rainfall_chance": 60
+            },
+            {
+              "date": "2026-10-02",
+              "temp_min": 7.6,
+              "temp_max": 11.2,
+              "wind_max": 32,
+              "rainfall_chance": 55
+            }
+          ]
+        },
+        "met_office": {
+          "source_label": "UK Met Office",
+          "temp_min": 11,
+          "temp_max": 15,
+          "wind_max": 20.92,
+          "next_7_days": [
+            {
+              "date": "2026-09-26",
+              "temp_min": 15,
+              "temp_max": 15,
+              "wind_max": 20.92
+            },
+            {
+              "date": "2026-09-27",
+              "temp_min": 11,
+              "temp_max": 15,
+              "wind_max": 20.92
+            },
+            {
+              "date": "2026-09-28",
+              "temp_min": 10,
+              "temp_max": 15,
+              "wind_max": 12.87
+            },
+            {
+              "date": "2026-09-29",
+              "temp_min": 11,
+              "temp_max": 17,
+              "wind_max": 22.53
+            },
+            {
+              "date": "2026-09-30",
+              "temp_min": 15,
+              "temp_max": 19,
+              "wind_max": 20.92
+            },
+            {
+              "date": "2026-10-01",
+              "temp_min": 12,
+              "temp_max": 15,
+              "wind_max": 22.53
+            },
+            {
+              "date": "2026-10-02",
+              "temp_min": 12,
+              "temp_max": 15,
+              "wind_max": 17.7
+            }
+          ]
+        },
+        "open_meteo": {
+          "source_label": "Open-Meteo",
+          "temp_min": 10.1,
+          "temp_max": 14.7,
+          "wind_max": 19.4,
+          "rainfall_chance": 100,
+          "wind_direction": "188",
+          "next_7_days": [
+            {
+              "date": "2026-09-26",
+              "temp_min": 11.6,
+              "temp_max": 14.8,
+              "wind_max": 23.8,
+              "rainfall_chance": 100,
+              "wind_direction": "203"
+            },
+            {
+              "date": "2026-09-27",
+              "temp_min": 10.1,
+              "temp_max": 14.7,
+              "wind_max": 19.4,
+              "rainfall_chance": 100,
+              "wind_direction": "188"
+            },
+            {
+              "date": "2026-09-28",
+              "temp_min": 8,
+              "temp_max": 13.4,
+              "wind_max": 18.4,
+              "rainfall_chance": 97,
+              "wind_direction": "191"
+            },
+            {
+              "date": "2026-09-29",
+              "temp_min": 8,
+              "temp_max": 16,
+              "wind_max": 32,
+              "rainfall_chance": 47,
+              "wind_direction": "122"
+            },
+            {
+              "date": "2026-09-30",
+              "temp_min": 13.3,
+              "temp_max": 17.6,
+              "wind_max": 31.3,
+              "rainfall_chance": 96,
+              "wind_direction": "161"
+            },
+            {
+              "date": "2026-10-01",
+              "temp_min": 11.1,
+              "temp_max": 13.7,
+              "wind_max": 25.6,
+              "rainfall_chance": 100,
+              "wind_direction": "185"
+            },
+            {
+              "date": "2026-10-02",
+              "temp_min": 10.3,
+              "temp_max": 13,
+              "wind_max": 25.9,
+              "rainfall_chance": 84,
+              "wind_direction": "216"
+            }
+          ]
+        },
+        "openweather": {
+          "source_label": "OpenWeather",
+          "temp_min": 10.15,
+          "temp_max": 13.83,
+          "wind_max": 19.84,
+          "rainfall_chance": 100,
+          "wind_direction": "191",
+          "next_7_days": [
+            {
+              "date": "2026-09-26",
+              "temp_min": 13.82,
+              "temp_max": 13.91,
+              "wind_max": 17.96,
+              "rainfall_chance": 90,
+              "wind_direction": "191"
+            },
+            {
+              "date": "2026-09-27",
+              "temp_min": 10.15,
+              "temp_max": 13.83,
+              "wind_max": 19.84,
+              "rainfall_chance": 100,
+              "wind_direction": "191"
+            },
+            {
+              "date": "2026-09-28",
+              "temp_min": 9.31,
+              "temp_max": 14.8,
+              "wind_max": 19.12,
+              "rainfall_chance": 100,
+              "wind_direction": "189"
+            },
+            {
+              "date": "2026-09-29",
+              "temp_min": 8.02,
+              "temp_max": 17.23,
+              "wind_max": 26.64,
+              "rainfall_chance": 6,
+              "wind_direction": "108"
+            },
+            {
+              "date": "2026-09-30",
+              "temp_min": 12.37,
+              "temp_max": 18.6,
+              "wind_max": 24.37,
+              "rainfall_chance": 100,
+              "wind_direction": "155"
+            },
+            {
+              "date": "2026-10-01",
+              "temp_min": 10.74,
+              "temp_max": 14.51,
+              "wind_max": 19.01,
+              "rainfall_chance": 89,
+              "wind_direction": "185"
+            }
+          ]
+        },
+        "met_no": {
+          "source_label": "MET Norway",
+          "temp_min": null,
+          "temp_max": null,
+          "wind_max": null
+        }
+      }
+    },
+    {
+      "name": "Glenshee",
+      "lat": 56.8833,
+      "lon": -3.4167,
+      "ensemble": {
+        "temp_min": 4.45,
+        "temp_max": 8,
+        "wind_max": 43.25,
+        "rainfall_chance": 92.9,
+        "wind_direction": "190",
+        "spread_temp": 3,
+        "spread_wind": 35.37
+      },
+      "briefing": "- Glenshee - 4.4 -> 8.0 C. strong wind from S (190°), peaking near 43.2 km/h (26.9 mph); higher model spread on wind. best window is late morning to early afternoon on sheltered routes. Rain chance around 93%.",
+      "suitability": {
+        "cycling": "Poor",
+        "hiking": "Fair",
+        "skiing": "Poor"
+      },
+      "source_forecasts": {
+        "google_weather": {
+          "source_label": "Google Weather",
+          "temp_min": 4.5,
+          "temp_max": 9,
+          "wind_max": 51,
+          "rainfall_chance": 60,
+          "next_7_days": [
+            {
+              "date": "2026-09-26",
+              "temp_min": 7.7,
+              "temp_max": 10.4,
+              "wind_max": 45,
+              "rainfall_chance": 25
+            },
+            {
+              "date": "2026-09-27",
+              "temp_min": 4.5,
+              "temp_max": 9,
+              "wind_max": 51,
+              "rainfall_chance": 60
+            },
+            {
+              "date": "2026-09-28",
+              "temp_min": 4.4,
+              "temp_max": 10.2,
+              "wind_max": 37,
+              "rainfall_chance": 15
+            },
+            {
+              "date": "2026-09-29",
+              "temp_min": 6.6,
+              "temp_max": 13.3,
+              "wind_max": 56,
+              "rainfall_chance": 75
+            },
+            {
+              "date": "2026-09-30",
+              "temp_min": 8,
+              "temp_max": 12.8,
+              "wind_max": 55,
+              "rainfall_chance": 75
+            },
+            {
+              "date": "2026-10-01",
+              "temp_min": 7.4,
+              "temp_max": 10.8,
+              "wind_max": 35,
+              "rainfall_chance": 20
+            },
+            {
+              "date": "2026-10-02",
+              "temp_min": 5.2,
+              "temp_max": 10.1,
+              "wind_max": 35,
+              "rainfall_chance": 15
+            }
+          ]
+        },
+        "met_office": {
+          "source_label": "UK Met Office",
+          "temp_min": 4,
+          "temp_max": 6,
+          "wind_max": 62.76,
+          "next_7_days": [
+            {
+              "date": "2026-09-26",
+              "temp_min": 6,
+              "temp_max": 7,
+              "wind_max": 59.55
+            },
+            {
+              "date": "2026-09-27",
+              "temp_min": 4,
+              "temp_max": 6,
+              "wind_max": 62.76
+            },
+            {
+              "date": "2026-09-28",
+              "temp_min": 4,
+              "temp_max": 6,
+              "wind_max": 35.41
+            },
+            {
+              "date": "2026-09-29",
+              "temp_min": 4,
+              "temp_max": 10,
+              "wind_max": 62.76
+            },
+            {
+              "date": "2026-09-30",
+              "temp_min": 7,
+              "temp_max": 11,
+              "wind_max": 62.76
+            },
+            {
+              "date": "2026-10-01",
+              "temp_min": 5,
+              "temp_max": 7,
+              "wind_max": 51.5
+            },
+            {
+              "date": "2026-10-02",
+              "temp_min": 4,
+              "temp_max": 6,
+              "wind_max": 37.01
+            }
+          ]
+        },
+        "open_meteo": {
+          "source_label": "Open-Meteo",
+          "temp_min": 4.6,
+          "temp_max": 8.7,
+          "wind_max": 40.3,
+          "rainfall_chance": 100,
+          "wind_direction": "192",
+          "next_7_days": [
+            {
+              "date": "2026-09-26",
+              "temp_min": 5.7,
+              "temp_max": 8.6,
+              "wind_max": 32.4,
+              "rainfall_chance": 73,
+              "wind_direction": "207"
+            },
+            {
+              "date": "2026-09-27",
+              "temp_min": 4.6,
+              "temp_max": 8.7,
+              "wind_max": 40.3,
+              "rainfall_chance": 100,
+              "wind_direction": "192"
+            },
+            {
+              "date": "2026-09-28",
+              "temp_min": 2.5,
+              "temp_max": 9.2,
+              "wind_max": 20.5,
+              "rainfall_chance": 12,
+              "wind_direction": "210"
+            },
+            {
+              "date": "2026-09-29",
+              "temp_min": 0.8,
+              "temp_max": 10.7,
+              "wind_max": 35.6,
+              "rainfall_chance": 81,
+              "wind_direction": "146"
+            },
+            {
+              "date": "2026-09-30",
+              "temp_min": 8.9,
+              "temp_max": 12.9,
+              "wind_max": 33.5,
+              "rainfall_chance": 94,
+              "wind_direction": "173"
+            },
+            {
+              "date": "2026-10-01",
+              "temp_min": 6,
+              "temp_max": 9.5,
+              "wind_max": 32,
+              "rainfall_chance": 41,
+              "wind_direction": "196"
+            },
+            {
+              "date": "2026-10-02",
+              "temp_min": 5.2,
+              "temp_max": 7.8,
+              "wind_max": 28.1,
+              "rainfall_chance": 43,
+              "wind_direction": "221"
+            }
+          ]
+        },
+        "openweather": {
+          "source_label": "OpenWeather",
+          "temp_min": 4.62,
+          "temp_max": 8.39,
+          "wind_max": 27.4,
+          "rainfall_chance": 100,
+          "wind_direction": "188",
+          "next_7_days": [
+            {
+              "date": "2026-09-26",
+              "temp_min": 8.11,
+              "temp_max": 11.33,
+              "wind_max": 23.15,
+              "rainfall_chance": 22,
+              "wind_direction": "198"
+            },
+            {
+              "date": "2026-09-27",
+              "temp_min": 4.62,
+              "temp_max": 8.39,
+              "wind_max": 27.4,
+              "rainfall_chance": 100,
+              "wind_direction": "188"
+            },
+            {
+              "date": "2026-09-28",
+              "temp_min": 3.16,
+              "temp_max": 8.94,
+              "wind_max": 19.58,
+              "rainfall_chance": 20,
+              "wind_direction": "205"
+            },
+            {
+              "date": "2026-09-29",
+              "temp_min": 2.85,
+              "temp_max": 8.93,
+              "wind_max": 28.33,
+              "rainfall_chance": 34,
+              "wind_direction": "133"
+            },
+            {
+              "date": "2026-09-30",
+              "temp_min": 7.35,
+              "temp_max": 11.8,
+              "wind_max": 27.86,
+              "rainfall_chance": 100,
+              "wind_direction": "163"
+            },
+            {
+              "date": "2026-10-01",
+              "temp_min": 5.4,
+              "temp_max": 8.38,
+              "wind_max": 21.82,
+              "rainfall_chance": 80,
+              "wind_direction": "198"
+            }
+          ]
+        },
+        "met_no": {
+          "source_label": "MET Norway",
+          "temp_min": null,
+          "temp_max": null,
+          "wind_max": null
+        }
+      }
+    },
+    {
+      "name": "Isle of Skye, Scotland, United Kingdom",
+      "lat": 57.3,
+      "lon": -6.25,
+      "ensemble": {
+        "temp_min": 9.75,
+        "temp_max": 12.75,
+        "wind_max": 43.52,
+        "rainfall_chance": 92.3,
+        "wind_direction": "203",
+        "spread_temp": 2.09,
+        "spread_wind": 25.25
+      },
+      "briefing": "- Isle of Skye, Scotland, United Kingdom - 9.8 -> 12.8 C. strong wind from SSW (203°), peaking near 43.5 km/h (27.0 mph); higher model spread on wind. best window is late morning to early afternoon on sheltered routes. Rain chance around 92%.",
+      "suitability": {
+        "cycling": "Poor",
+        "hiking": "Fair",
+        "skiing": "Poor"
+      },
+      "source_forecasts": {
+        "google_weather": {
+          "source_label": "Google Weather",
+          "temp_min": 9.1,
+          "temp_max": 12.4,
+          "wind_max": 61,
+          "rainfall_chance": 75,
+          "next_7_days": [
+            {
+              "date": "2026-09-26",
+              "temp_min": 10.6,
+              "temp_max": 13.1,
+              "wind_max": 58,
+              "rainfall_chance": 40
+            },
+            {
+              "date": "2026-09-27",
+              "temp_min": 9.1,
+              "temp_max": 12.4,
+              "wind_max": 61,
+              "rainfall_chance": 75
+            },
+            {
+              "date": "2026-09-28",
+              "temp_min": 9.6,
+              "temp_max": 12.6,
+              "wind_max": 50,
+              "rainfall_chance": 30
+            },
+            {
+              "date": "2026-09-29",
+              "temp_min": 10.2,
+              "temp_max": 16.2,
+              "wind_max": 61,
+              "rainfall_chance": 75
+            },
+            {
+              "date": "2026-09-30",
+              "temp_min": 11.1,
+              "temp_max": 15.4,
+              "wind_max": 63,
+              "rainfall_chance": 55
+            },
+            {
+              "date": "2026-10-01",
+              "temp_min": 10.7,
+              "temp_max": 12.5,
+              "wind_max": 63,
+              "rainfall_chance": 65
+            },
+            {
+              "date": "2026-10-02",
+              "temp_min": 9.2,
+              "temp_max": 12,
+              "wind_max": 60,
+              "rainfall_chance": 45
+            }
+          ]
+        },
+        "met_office": {
+          "source_label": "UK Met Office",
+          "temp_min": 11,
+          "temp_max": 14,
+          "wind_max": 43.45,
+          "next_7_days": [
+            {
+              "date": "2026-09-26",
+              "temp_min": 13,
+              "temp_max": 14,
+              "wind_max": 40.23
+            },
+            {
+              "date": "2026-09-27",
+              "temp_min": 11,
+              "temp_max": 14,
+              "wind_max": 43.45
+            },
+            {
+              "date": "2026-09-28",
+              "temp_min": 11,
+              "temp_max": 13,
+              "wind_max": 28.97
+            },
+            {
+              "date": "2026-09-29",
+              "temp_min": 11,
+              "temp_max": 17,
+              "wind_max": 38.62
+            },
+            {
+              "date": "2026-09-30",
+              "temp_min": 14,
+              "temp_max": 17,
+              "wind_max": 38.62
+            },
+            {
+              "date": "2026-10-01",
+              "temp_min": 11,
+              "temp_max": 13,
+              "wind_max": 37.01
+            },
+            {
+              "date": "2026-10-02",
+              "temp_min": 11,
+              "temp_max": 13,
+              "wind_max": 28.97
+            }
+          ]
+        },
+        "openweather": {
+          "source_label": "OpenWeather",
+          "temp_min": 9.05,
+          "temp_max": 11.91,
+          "wind_max": 35.75,
+          "rainfall_chance": 100,
+          "wind_direction": "203",
+          "next_7_days": [
+            {
+              "date": "2026-09-26",
+              "temp_min": 12.22,
+              "temp_max": 13.19,
+              "wind_max": 33.62,
+              "rainfall_chance": 100,
+              "wind_direction": "194"
+            },
+            {
+              "date": "2026-09-27",
+              "temp_min": 9.05,
+              "temp_max": 11.91,
+              "wind_max": 35.75,
+              "rainfall_chance": 100,
+              "wind_direction": "203"
+            },
+            {
+              "date": "2026-09-28",
+              "temp_min": 8.72,
+              "temp_max": 11.49,
+              "wind_max": 28.26,
+              "rainfall_chance": 91,
+              "wind_direction": "206"
+            },
+            {
+              "date": "2026-09-29",
+              "temp_min": 8.95,
+              "temp_max": 15.2,
+              "wind_max": 27.79,
+              "rainfall_chance": 0,
+              "wind_direction": "127"
+            },
+            {
+              "date": "2026-09-30",
+              "temp_min": 10.17,
+              "temp_max": 15.33,
+              "wind_max": 33.98,
+              "rainfall_chance": 100,
+              "wind_direction": "166"
+            },
+            {
+              "date": "2026-10-01",
+              "temp_min": 9.18,
+              "temp_max": 10.5,
+              "wind_max": 31.28,
+              "rainfall_chance": 100,
+              "wind_direction": "196"
+            }
+          ]
+        },
+        "open_meteo": {
+          "source_label": "Open-Meteo",
+          "temp_min": null,
+          "temp_max": null,
+          "wind_max": null
+        },
+        "met_no": {
+          "source_label": "MET Norway",
+          "temp_min": null,
+          "temp_max": null,
+          "wind_max": null
+        }
+      }
+    },
+    {
+      "name": "Paisley",
+      "lat": 55.8473,
+      "lon": -4.4401,
+      "ensemble": {
+        "temp_min": 10.2,
+        "temp_max": 14.1,
+        "wind_max": 27.21,
+        "rainfall_chance": 92.3,
+        "wind_direction": "196",
+        "spread_temp": 1.53,
+        "spread_wind": 19.3
+      },
+      "briefing": "- Paisley - 10.2 -> 14.1 C. moderate wind from SSW (196°), peaking near 27.2 km/h (16.9 mph); higher model spread on wind. best window is mid-morning through mid-afternoon. Rain chance around 92%.",
+      "suitability": {
+        "cycling": "Good",
+        "hiking": "Good",
+        "skiing": "Poor"
+      },
+      "source_forecasts": {
+        "google_weather": {
+          "source_label": "Google Weather",
+          "temp_min": 8.3,
+          "temp_max": 13.1,
+          "wind_max": 37,
+          "rainfall_chance": 75,
+          "next_7_days": [
+            {
+              "date": "2026-09-26",
+              "temp_min": 12.4,
+              "temp_max": 15.3,
+              "wind_max": 37,
+              "rainfall_chance": 35
+            },
+            {
+              "date": "2026-09-27",
+              "temp_min": 8.3,
+              "temp_max": 13.1,
+              "wind_max": 37,
+              "rainfall_chance": 75
+            },
+            {
+              "date": "2026-09-28",
+              "temp_min": 7.9,
+              "temp_max": 15.7,
+              "wind_max": 31,
+              "rainfall_chance": 15
+            },
+            {
+              "date": "2026-09-29",
+              "temp_min": 8.6,
+              "temp_max": 17.9,
+              "wind_max": 43,
+              "rainfall_chance": 75
+            },
+            {
+              "date": "2026-09-30",
+              "temp_min": 10.9,
+              "temp_max": 17.9,
+              "wind_max": 42,
+              "rainfall_chance": 65
+            },
+            {
+              "date": "2026-10-01",
+              "temp_min": 10.4,
+              "temp_max": 15.9,
+              "wind_max": 34,
+              "rainfall_chance": 45
+            },
+            {
+              "date": "2026-10-02",
+              "temp_min": 9,
+              "temp_max": 14.3,
+              "wind_max": 35,
+              "rainfall_chance": 45
+            }
+          ]
+        },
+        "met_office": {
+          "source_label": "UK Met Office",
+          "temp_min": 11,
+          "temp_max": 14,
+          "wind_max": 17.7,
+          "next_7_days": [
+            {
+              "date": "2026-09-26",
+              "temp_min": 14,
+              "temp_max": 16,
+              "wind_max": 20.92
+            },
+            {
+              "date": "2026-09-27",
+              "temp_min": 11,
+              "temp_max": 14,
+              "wind_max": 17.7
+            },
+            {
+              "date": "2026-09-28",
+              "temp_min": 9,
+              "temp_max": 15,
+              "wind_max": 16.09
+            },
+            {
+              "date": "2026-09-29",
+              "temp_min": 8,
+              "temp_max": 18,
+              "wind_max": 20.92
+            },
+            {
+              "date": "2026-09-30",
+              "temp_min": 14,
+              "temp_max": 19,
+              "wind_max": 20.92
+            },
+            {
+              "date": "2026-10-01",
+              "temp_min": 12,
+              "temp_max": 15,
+              "wind_max": 22.53
+            },
+            {
+              "date": "2026-10-02",
+              "temp_min": 11,
+              "temp_max": 15,
+              "wind_max": 14.48
+            }
+          ]
+        },
+        "openweather": {
+          "source_label": "OpenWeather",
+          "temp_min": 10.41,
+          "temp_max": 14.63,
+          "wind_max": 30.42,
+          "rainfall_chance": 100,
+          "wind_direction": "196",
+          "next_7_days": [
+            {
+              "date": "2026-09-26",
+              "temp_min": 13.99,
+              "temp_max": 15.91,
+              "wind_max": 23.33,
+              "rainfall_chance": 79,
+              "wind_direction": "195"
+            },
+            {
+              "date": "2026-09-27",
+              "temp_min": 10.41,
+              "temp_max": 14.63,
+              "wind_max": 30.42,
+              "rainfall_chance": 100,
+              "wind_direction": "196"
+            },
+            {
+              "date": "2026-09-28",
+              "temp_min": 8.27,
+              "temp_max": 14.27,
+              "wind_max": 18.9,
+              "rainfall_chance": 28,
+              "wind_direction": "190"
+            },
+            {
+              "date": "2026-09-29",
+              "temp_min": 6.36,
+              "temp_max": 17.22,
+              "wind_max": 21.2,
+              "rainfall_chance": 28,
+              "wind_direction": "91"
+            },
+            {
+              "date": "2026-09-30",
+              "temp_min": 11.88,
+              "temp_max": 17,
+              "wind_max": 22.54,
+              "rainfall_chance": 100,
+              "wind_direction": "170"
+            },
+            {
+              "date": "2026-10-01",
+              "temp_min": 9.56,
+              "temp_max": 14.15,
+              "wind_max": 20.63,
+              "rainfall_chance": 25,
+              "wind_direction": "198"
+            }
+          ]
+        },
+        "open_meteo": {
+          "source_label": "Open-Meteo",
+          "temp_min": null,
+          "temp_max": null,
+          "wind_max": null
+        },
+        "met_no": {
+          "source_label": "MET Norway",
+          "temp_min": null,
+          "temp_max": null,
+          "wind_max": null
+        }
+      }
+    }
+  ],
+  "mwis_pdf_links": [
+    "https://www.mwis.org.uk/assets/forecasts/nw-mwi-wm14615_2026-09-25_163036_6141.pdf",
+    "https://www.mwis.org.uk/assets/forecasts/wh-mwi-wm14615_2026-09-25_163053_9216.pdf",
+    "https://www.mwis.org.uk/assets/forecasts/eh-mwi-wm14615_2026-09-25_163029_7406.pdf",
+    "https://www.mwis.org.uk/assets/forecasts/sh-mwi-wm14615_2026-09-25_163046_8199.pdf",
+    "https://www.mwis.org.uk/assets/forecasts/su-mwi-wm14615_2026-09-25_163049_7272.pdf"
+  ]
+}
