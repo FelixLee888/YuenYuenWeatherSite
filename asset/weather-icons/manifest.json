@@ -1,0 +1,510 @@
+{
+  "source": "/Users/felixlee/Downloads/vecteezy_set-of-weather-icons-colorful-style_1856906.svg",
+  "count": 28,
+  "icons": [
+    {
+      "index": 1,
+      "name": "weather_icon_01",
+      "svg": "./svg/weather_icon_01.svg",
+      "png": "./png/weather_icon_01.png",
+      "viewBox": [
+        1834.59,
+        1625.28,
+        324.1,
+        233.68
+      ],
+      "source_m_bounds": [
+        1882.59,
+        1673.28,
+        2110.69,
+        1810.96
+      ]
+    },
+    {
+      "index": 2,
+      "name": "weather_icon_02",
+      "svg": "./svg/weather_icon_02.svg",
+      "png": "./png/weather_icon_02.png",
+      "viewBox": [
+        743.71,
+        969.17,
+        285.87,
+        231.24
+      ],
+      "source_m_bounds": [
+        791.71,
+        1017.17,
+        981.58,
+        1152.41
+      ]
+    },
+    {
+      "index": 3,
+      "name": "weather_icon_03",
+      "svg": "./svg/weather_icon_03.svg",
+      "png": "./png/weather_icon_03.png",
+      "viewBox": [
+        1273.35,
+        2285.64,
+        280.47,
+        237.11
+      ],
+      "source_m_bounds": [
+        1321.35,
+        2333.64,
+        1505.82,
+        2474.75
+      ]
+    },
+    {
+      "index": 4,
+      "name": "weather_icon_04",
+      "svg": "./svg/weather_icon_04.svg",
+      "png": "./png/weather_icon_04.png",
+      "viewBox": [
+        1290.69,
+        1983.44,
+        274.99,
+        195.89
+      ],
+      "source_m_bounds": [
+        1338.69,
+        2031.44,
+        1517.68,
+        2131.33
+      ]
+    },
+    {
+      "index": 5,
+      "name": "weather_icon_05",
+      "svg": "./svg/weather_icon_05.svg",
+      "png": "./png/weather_icon_05.png",
+      "viewBox": [
+        1888.21,
+        2326.92,
+        275.0,
+        195.88
+      ],
+      "source_m_bounds": [
+        1936.21,
+        2374.92,
+        2115.21,
+        2474.8
+      ]
+    },
+    {
+      "index": 6,
+      "name": "weather_icon_06",
+      "svg": "./svg/weather_icon_06.svg",
+      "png": "./png/weather_icon_06.png",
+      "viewBox": [
+        1886.67,
+        281.12,
+        275.0,
+        204.34
+      ],
+      "source_m_bounds": [
+        1934.67,
+        329.12,
+        2113.67,
+        437.46
+      ]
+    },
+    {
+      "index": 7,
+      "name": "weather_icon_07",
+      "svg": "./svg/weather_icon_07.svg",
+      "png": "./png/weather_icon_07.png",
+      "viewBox": [
+        1851.31,
+        596.42,
+        310.93,
+        254.26
+      ],
+      "source_m_bounds": [
+        1899.31,
+        644.42,
+        2114.24,
+        802.68
+      ]
+    },
+    {
+      "index": 8,
+      "name": "weather_icon_08",
+      "svg": "./svg/weather_icon_08.svg",
+      "png": "./png/weather_icon_08.png",
+      "viewBox": [
+        1834.71,
+        896.18,
+        250.86,
+        190.68
+      ],
+      "source_m_bounds": [
+        1882.71,
+        944.18,
+        2037.57,
+        1038.86
+      ]
+    },
+    {
+      "index": 9,
+      "name": "weather_icon_09",
+      "svg": "./svg/weather_icon_09.svg",
+      "png": "./png/weather_icon_09.png",
+      "viewBox": [
+        1841.78,
+        1262.62,
+        315.67,
+        269.13
+      ],
+      "source_m_bounds": [
+        1889.78,
+        1310.62,
+        2109.45,
+        1483.75
+      ]
+    },
+    {
+      "index": 10,
+      "name": "weather_icon_10",
+      "svg": "./svg/weather_icon_10.svg",
+      "png": "./png/weather_icon_10.png",
+      "viewBox": [
+        1849.46,
+        1934.44,
+        310.36,
+        265.55
+      ],
+      "source_m_bounds": [
+        1897.46,
+        1982.44,
+        2111.82,
+        2151.99
+      ]
+    },
+    {
+      "index": 11,
+      "name": "weather_icon_11",
+      "svg": "./svg/weather_icon_11.svg",
+      "png": "./png/weather_icon_11.png",
+      "viewBox": [
+        223.86,
+        259.09,
+        316.11,
+        235.69
+      ],
+      "source_m_bounds": [
+        271.86,
+        307.09,
+        491.97,
+        446.78
+      ]
+    },
+    {
+      "index": 12,
+      "name": "weather_icon_12",
+      "svg": "./svg/weather_icon_12.svg",
+      "png": "./png/weather_icon_12.png",
+      "viewBox": [
+        218.15,
+        572.32,
+        299.24,
+        240.01
+      ],
+      "source_m_bounds": [
+        266.15,
+        620.32,
+        469.39,
+        764.33
+      ]
+    },
+    {
+      "index": 13,
+      "name": "weather_icon_13",
+      "svg": "./svg/weather_icon_13.svg",
+      "png": "./png/weather_icon_13.png",
+      "viewBox": [
+        250.26,
+        882.45,
+        269.84,
+        257.95
+      ],
+      "source_m_bounds": [
+        298.26,
+        930.45,
+        472.1,
+        1092.4
+      ]
+    },
+    {
+      "index": 14,
+      "name": "weather_icon_14",
+      "svg": "./svg/weather_icon_14.svg",
+      "png": "./png/weather_icon_14.png",
+      "viewBox": [
+        251.69,
+        1242.47,
+        252.98,
+        279.91
+      ],
+      "source_m_bounds": [
+        299.69,
+        1290.47,
+        456.67,
+        1474.38
+      ]
+    },
+    {
+      "index": 15,
+      "name": "weather_icon_15",
+      "svg": "./svg/weather_icon_15.svg",
+      "png": "./png/weather_icon_15.png",
+      "viewBox": [
+        234.27,
+        1587.98,
+        291.17,
+        250.66
+      ],
+      "source_m_bounds": [
+        282.27,
+        1635.98,
+        477.44,
+        1790.64
+      ]
+    },
+    {
+      "index": 16,
+      "name": "weather_icon_16",
+      "svg": "./svg/weather_icon_16.svg",
+      "png": "./png/weather_icon_16.png",
+      "viewBox": [
+        241.76,
+        1905.66,
+        277.4,
+        286.1
+      ],
+      "source_m_bounds": [
+        289.76,
+        1953.66,
+        471.16,
+        2143.76
+      ]
+    },
+    {
+      "index": 17,
+      "name": "weather_icon_17",
+      "svg": "./svg/weather_icon_17.svg",
+      "png": "./png/weather_icon_17.png",
+      "viewBox": [
+        213.27,
+        2259.84,
+        302.42,
+        295.33
+      ],
+      "source_m_bounds": [
+        261.27,
+        2307.84,
+        467.69,
+        2507.17
+      ]
+    },
+    {
+      "index": 18,
+      "name": "weather_icon_18",
+      "svg": "./svg/weather_icon_18.svg",
+      "png": "./png/weather_icon_18.png",
+      "viewBox": [
+        1273.3,
+        222.84,
+        276.72,
+        298.58
+      ],
+      "source_m_bounds": [
+        1321.3,
+        270.84,
+        1502.02,
+        473.42
+      ]
+    },
+    {
+      "index": 19,
+      "name": "weather_icon_19",
+      "svg": "./svg/weather_icon_19.svg",
+      "png": "./png/weather_icon_19.png",
+      "viewBox": [
+        1241.03,
+        552.86,
+        306.32,
+        313.04
+      ],
+      "source_m_bounds": [
+        1289.03,
+        600.86,
+        1499.35,
+        817.9
+      ]
+    },
+    {
+      "index": 20,
+      "name": "weather_icon_20",
+      "svg": "./svg/weather_icon_20.svg",
+      "png": "./png/weather_icon_20.png",
+      "viewBox": [
+        698.34,
+        231.92,
+        329.31,
+        263.25
+      ],
+      "source_m_bounds": [
+        746.34,
+        279.92,
+        979.65,
+        447.17
+      ]
+    },
+    {
+      "index": 21,
+      "name": "weather_icon_21",
+      "svg": "./svg/weather_icon_21.svg",
+      "png": "./png/weather_icon_21.png",
+      "viewBox": [
+        780.18,
+        641.74,
+        164.94,
+        128.83
+      ],
+      "source_m_bounds": [
+        828.18,
+        689.74,
+        897.12,
+        722.57
+      ]
+    },
+    {
+      "index": 22,
+      "name": "weather_icon_22",
+      "svg": "./svg/weather_icon_22.svg",
+      "png": "./png/weather_icon_22.png",
+      "viewBox": [
+        741.33,
+        1233.75,
+        286.34,
+        309.23
+      ],
+      "source_m_bounds": [
+        789.33,
+        1281.75,
+        979.67,
+        1494.98
+      ]
+    },
+    {
+      "index": 23,
+      "name": "weather_icon_23",
+      "svg": "./svg/weather_icon_23.svg",
+      "png": "./png/weather_icon_23.png",
+      "viewBox": [
+        716.66,
+        1561.36,
+        303.65,
+        301.38
+      ],
+      "source_m_bounds": [
+        764.66,
+        1609.36,
+        972.31,
+        1814.74
+      ]
+    },
+    {
+      "index": 24,
+      "name": "weather_icon_24",
+      "svg": "./svg/weather_icon_24.svg",
+      "png": "./png/weather_icon_24.png",
+      "viewBox": [
+        754.59,
+        1989.75,
+        274.99,
+        225.93
+      ],
+      "source_m_bounds": [
+        802.59,
+        2037.75,
+        981.58,
+        2167.68
+      ]
+    },
+    {
+      "index": 25,
+      "name": "weather_icon_25",
+      "svg": "./svg/weather_icon_25.svg",
+      "png": "./png/weather_icon_25.png",
+      "viewBox": [
+        749.59,
+        2265.12,
+        268.07,
+        296.11
+      ],
+      "source_m_bounds": [
+        797.59,
+        2313.12,
+        969.66,
+        2513.23
+      ]
+    },
+    {
+      "index": 26,
+      "name": "weather_icon_26",
+      "svg": "./svg/weather_icon_26.svg",
+      "png": "./png/weather_icon_26.png",
+      "viewBox": [
+        1274.44,
+        910.19,
+        275.07,
+        285.89
+      ],
+      "source_m_bounds": [
+        1322.44,
+        958.19,
+        1501.51,
+        1148.08
+      ]
+    },
+    {
+      "index": 27,
+      "name": "weather_icon_27",
+      "svg": "./svg/weather_icon_27.svg",
+      "png": "./png/weather_icon_27.png",
+      "viewBox": [
+        1281.31,
+        1243.14,
+        244.09,
+        282.96
+      ],
+      "source_m_bounds": [
+        1329.31,
+        1291.14,
+        1477.4,
+        1478.1
+      ]
+    },
+    {
+      "index": 28,
+      "name": "weather_icon_28",
+      "svg": "./svg/weather_icon_28.svg",
+      "png": "./png/weather_icon_28.png",
+      "viewBox": [
+        1241.97,
+        1578.21,
+        310.55,
+        265.72
+      ],
+      "source_m_bounds": [
+        1289.97,
+        1626.21,
+        1504.52,
+        1795.93
+      ]
+    }
+  ]
+}
