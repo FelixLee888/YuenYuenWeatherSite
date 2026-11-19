@@ -319,11 +319,6 @@ function bindEvents() {
   });
 
   elements.locationGrid.addEventListener("click", async (event) => {
-    if (Date.now() < state.suppressDeckClickUntil) {
-      event.preventDefault();
-      return;
-    }
-
     const deleteConfirmButton = getLocationDeleteConfirmButton(event);
     if (deleteConfirmButton) {
       event.preventDefault();
@@ -349,11 +344,20 @@ function bindEvents() {
       event.preventDefault();
       event.stopPropagation();
       const location = deleteButton.getAttribute("data-location") || "";
-      if (location) {
-        state.pendingDeleteLocation =
-          normalizeLocation(state.pendingDeleteLocation) === normalizeLocation(location) ? "" : location;
-        renderLocationCards();
+      if (!location) {
+        return;
       }
+
+      const displayName = getLocationDisplayName(location);
+      const confirmed = window.confirm(`Remove ${displayName} from the shared weather watchlist?`);
+      if (confirmed) {
+        await deleteLocation(location);
+      }
+      return;
+    }
+
+    if (Date.now() < state.suppressDeckClickUntil) {
+      event.preventDefault();
       return;
     }
 
@@ -945,8 +949,14 @@ async function deleteLocation(location) {
     return false;
   }
 
+  if (!result.removed) {
+    setLoading(false);
+    setStatus(result.message || `${location} was not found in the shared watchlist.`, "error");
+    return false;
+  }
+
   await loadOverview();
-  setStatus(result.removed ? `${location} removed.` : `${location} is not in watch list.`, "success");
+  setStatus(result.message || `${location} removed.`, "success");
   return true;
 }
 
